@@ -3,25 +3,352 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* White and Gold with Teal Design Tokens */
+  --background: #f8f9fa;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-border: #e2e8f0;
+
+  /* Stately Teal */
+  --teal: #0d5c58;
+  --teal-hover: #083d3a;
+  --teal-light: #ebf5f4;
+  --teal-border: rgba(13, 92, 88, 0.25);
+  --teal-glow: rgba(13, 92, 88, 0.15);
+
+  /* Polished Gold */
+  --gold: #c5a059;
+  --gold-hover: #b38e47;
+  --gold-light: #fbf7ee;
+  --gold-dark: #8a6b29;
+  --gold-border: rgba(197, 160, 89, 0.45);
+  --gold-glow: rgba(197, 160, 89, 0.25);
+
+  /* Accent & Status */
+  --accent: var(--teal);
+  --accent-hover: var(--teal-hover);
+  --accent-glow: var(--teal-glow);
+  --success: #0d5c58;
+  --success-bg: #ebf5f4;
+  --error: #dc2626;
+  --error-bg: #fef2f2;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-focus: rgba(13, 92, 88, 0.18);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    system-ui,
+    -apple-system,
+    sans-serif;
+  min-height: 100vh;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* Stately White & Gold & Teal Background */
+.bg-game {
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      rgba(197, 160, 89, 0.08),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 90% 90%,
+      rgba(13, 92, 88, 0.06),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 30% at 10% 80%,
+      rgba(197, 160, 89, 0.05),
+      transparent 70%
+    ),
+    #f8f9fa;
+  min-height: 100vh;
+}
+
+/* Crisp White Card with subtle luxury shadow */
+.glass-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.25rem;
+  box-shadow:
+    0 4px 20px -2px rgba(13, 92, 88, 0.04),
+    0 2px 6px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* File drop zone */
+.drop-zone {
+  border: 2px dashed var(--input-border);
+  border-radius: 0.875rem;
+  background: #ffffff;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+  border-color: var(--teal);
+  background: var(--teal-light);
+}
+
+.drop-zone.has-file {
+  border-color: var(--teal);
+  border-style: solid;
+  background: var(--teal-light);
+}
+
+.drop-zone.has-error {
+  border-color: var(--error);
+  border-style: solid;
+  background: var(--error-bg);
+}
+
+/* Custom checkbox */
+.custom-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--input-border);
+  border-radius: 0.375rem;
+  background: var(--input-bg);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.custom-checkbox:checked {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
+.custom-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.custom-checkbox:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* Input styling */
+.game-input {
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  color: #0f172a;
+  font-size: 0.9375rem;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.game-input::placeholder {
+  color: #94a3b8;
+}
+
+.game-input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+/* Stately Teal primary button with gold accents */
+.btn-primary {
+  background: #0d5c58;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(13, 92, 88, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #083d3a;
+  border-color: #c5a059;
+  box-shadow: 0 6px 20px rgba(13, 92, 88, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #94a3b8;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Polished Gold button */
+.btn-gold {
+  background: linear-gradient(135deg, #c5a059, #b38e47);
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-gold:hover {
+  background: linear-gradient(135deg, #b38e47, #a27c36);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(197, 160, 89, 0.4);
+}
+
+/* Animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* ── Topic cards ────────────────────────────────────────────────────── */
+
+.topic-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 2px 6px rgba(15, 76, 92, 0.03);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topic-card-available {
+  background: #ffffff;
+  cursor: pointer;
+  border-color: #e2e8f0;
+}
+
+.topic-card-available:hover {
+  background: #ffffff;
+  border-color: #c5a059;
+  box-shadow:
+    0 8px 24px -4px rgba(197, 160, 89, 0.18),
+    0 2px 6px rgba(13, 92, 88, 0.04);
+  transform: translateY(-2px);
+}
+
+.topic-card-available:active {
+  transform: translateY(0);
+}
+
+.topic-card-taken {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  cursor: default;
+  opacity: 0.75;
+}
+
+/* ── Mystery bag cards ──────────────────────────────────────────────── */
+
+.mystery-bag-card {
+  border-radius: 1rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mystery-bag-locked {
+  background: #f8f9fa;
+  border: 1.5px dashed #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.mystery-bag-unlocked {
+  background: linear-gradient(135deg, #fffdf8, #fbf6ea);
+  border: 1.5px solid #c5a059;
+  box-shadow: 0 4px 16px rgba(197, 160, 89, 0.14);
+  cursor: pointer;
+}
+
+.mystery-bag-unlocked:hover {
+  background: #fdf4de;
+  border-color: #a98335;
+  box-shadow: 0 8px 24px rgba(197, 160, 89, 0.25);
+  transform: translateY(-2px);
+}
+
+.mystery-bag-unlocked:active {
+  transform: translateY(0);
+}
+
+/* ── Scoreboard cards ───────────────────────────────────────────────── */
+
+.scoreboard-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scoreboard-card-active {
+  background: #ffffff !important;
+  border-color: #c5a059 !important;
+  border-width: 2px !important;
+  box-shadow:
+    0 0 0 3px rgba(197, 160, 89, 0.2),
+    0 8px 24px -4px rgba(13, 92, 88, 0.12) !important;
+  transform: scale(1.02);
+  z-index: 1;
+}
+
+/* ── Reset button in taken cards ────────────────────────────────────── */
+
+.reset-btn {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.topic-card-taken:hover .reset-btn {
+  opacity: 1;
 }
