@@ -107,7 +107,7 @@ describe('turnOrder', () => {
 
   // -------------------------------------------------------------------------
   // 4. getNextPlayer across each of the 6 pass-order sequences
-  //    (covering score-tie, non-tie, and attempted cases)
+  //    (covering BA-tie, non-tie, and attempted cases)
   // -------------------------------------------------------------------------
 
   describe('getNextPlayer across all 6 pass-order sequences', () => {
@@ -124,34 +124,34 @@ describe('turnOrder', () => {
       const [first, second] = passOrder;
 
       describe(name, () => {
-        it('non-tie: first player has lower score -> picks first', () => {
-          const scores = { [first]: 2, [second]: 5 };
-          expect(getNextPlayer(passOrder, [], scores)).toBe(first);
+        it('non-tie: first player has lower bonusAttempts -> picks first', () => {
+          const bonusAttempts = { [first]: 1, [second]: 3 };
+          expect(getNextPlayer(passOrder, [], bonusAttempts)).toBe(first);
         });
 
-        it('non-tie: second player has lower score -> picks second', () => {
-          const scores = { [first]: 8, [second]: 3 };
-          expect(getNextPlayer(passOrder, [], scores)).toBe(second);
+        it('non-tie: second player has lower bonusAttempts -> picks second', () => {
+          const bonusAttempts = { [first]: 4, [second]: 2 };
+          expect(getNextPlayer(passOrder, [], bonusAttempts)).toBe(second);
         });
 
-        it('score-tie: both have identical scores -> picks first in passOrder', () => {
-          const scores = { [first]: 4, [second]: 4 };
-          expect(getNextPlayer(passOrder, [], scores)).toBe(first);
+        it('BA-tie: both have identical bonusAttempts -> picks first in passOrder', () => {
+          const bonusAttempts = { [first]: 2, [second]: 2 };
+          expect(getNextPlayer(passOrder, [], bonusAttempts)).toBe(first);
         });
 
-        it('score-tie at 0: both have 0 points -> picks first in passOrder', () => {
-          const scores = { [first]: 0, [second]: 0 };
-          expect(getNextPlayer(passOrder, [], scores)).toBe(first);
+        it('BA-tie at 0: both have 0 bonusAttempts -> picks first in passOrder', () => {
+          const bonusAttempts = { [first]: 0, [second]: 0 };
+          expect(getNextPlayer(passOrder, [], bonusAttempts)).toBe(first);
         });
 
-        it('after first player has attempted -> picks second player regardless of score', () => {
-          const scores = { [first]: 0, [second]: 10 };
-          expect(getNextPlayer(passOrder, [first], scores)).toBe(second);
+        it('after first player has attempted -> picks second player regardless of BA', () => {
+          const bonusAttempts = { [first]: 0, [second]: 10 };
+          expect(getNextPlayer(passOrder, [first], bonusAttempts)).toBe(second);
         });
 
         it('after both players have attempted -> returns null', () => {
-          const scores = { [first]: 2, [second]: 5 };
-          expect(getNextPlayer(passOrder, [first, second], scores)).toBeNull();
+          const bonusAttempts = { [first]: 1, [second]: 2 };
+          expect(getNextPlayer(passOrder, [first, second], bonusAttempts)).toBeNull();
         });
       });
     });

@@ -14,6 +14,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useGame } from '@/components/GameProvider';
 import { clearState } from '@/lib/gameReducer';
+import Logo from '@/components/Logo';
 
 const RANK_BADGES = ['1', '2', '3'];
 const RANK_LABELS = ['1st Place', '2nd Place', '3rd Place'];
@@ -56,7 +57,10 @@ export default function ResultScreen() {
     <main className="bg-game min-h-screen flex flex-col items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-3xl flex flex-col items-center gap-7 animate-fade-in-up my-auto">
         {/* ── Trophy Header ─────────────────────────────────────────── */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <div className="mb-2">
+            <Logo size="md" />
+          </div>
           <div className="inline-flex items-center justify-center mb-1">
             <span className="rounded-full bg-[#FBF6EA] border border-[#C5A059] px-3.5 py-1 text-xs font-black uppercase tracking-widest text-[#8A6B29]">
               Tournament Complete
@@ -140,13 +144,16 @@ export default function ResultScreen() {
                     </div>
                   </div>
 
-                  {/* Right: Score */}
+                  {/* Right: Score & BA */}
                   <div className="text-right">
                     <p className="text-2xl sm:text-3xl font-black text-slate-900 tabular-nums">
                       {player.score}
                     </p>
                     <p className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-                      points
+                      {player.score === 1 ? 'point' : 'points'}
+                    </p>
+                    <p className="text-[11px] font-bold text-[#8A6B29] mt-0.5">
+                      {player.bonusAttempts ?? 0} BA
                     </p>
                   </div>
                 </div>

@@ -14,6 +14,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGame } from '@/components/GameProvider';
 import Scoreboard from '@/components/Scoreboard';
+import Logo from '@/components/Logo';
 import type { Question } from '@/types';
 import { COLUMN_LABELS } from '@/types';
 
@@ -154,7 +155,9 @@ export default function QuestionScreen() {
       {/* ── Top Header ─────────────────────────────────────────────── */}
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 py-3 sm:px-6 sticky top-0 z-20 shadow-xs">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Logo size="sm" />
+            <span className="h-5 w-px bg-slate-200 hidden sm:inline-block" />
             <button
               onClick={handleNextQuestion}
               className="text-xs font-bold text-[#0D5C58] hover:text-[#083D3A] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0D5C58]/30 bg-[#EBF5F4] hover:bg-[#D7EAE8]"

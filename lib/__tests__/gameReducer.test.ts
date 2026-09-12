@@ -814,4 +814,195 @@ describe('gameReducer - Topics and Turn Order integration', () => {
     expect(finished.topics[1].taken).toBe(true);
     expect(finished.topics[1].takenBy).toBe('player-2');
   });
+
+  // -------------------------------------------------------------------------
+  // 12. Bonus Attempts (BA) Tracking & Pass Priority
+  // -------------------------------------------------------------------------
+
+  describe('Bonus Attempts (BA) tracking and BA-based pass priority', () => {
+    it('initializes all players with bonusAttempts: 0 on SET_PLAYERS and START_GAME', () => {
+      const state = setupActiveGame();
+      expect(state.players.every((p) => p.bonusAttempts === 0)).toBe(true);
+    });
+
+    it('direct player MARK_CORRECT does NOT increment BA', () => {
+      let state = setupActiveGame();
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+      // Player 1 is direct player
+      expect(state.currentQuestion?.whoseTurn).toBe('player-1');
+      expect(state.currentQuestion?.directPlayer).toBe('player-1');
+
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      const p1 = state.players.find((p) => p.id === 'player-1')!;
+      expect(p1.score).toBe(1);
+      expect(p1.bonusAttempts).toBe(0);
+    });
+
+    it('direct player MARK_WRONG does NOT increment BA', () => {
+      let state = setupActiveGame();
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+      // Player 1 is direct player
+      state = gameReducer(state, { type: 'MARK_WRONG' });
+      const p1 = state.players.find((p) => p.id === 'player-1')!;
+      expect(p1.bonusAttempts).toBe(0);
+    });
+
+    it('PASS never increments BA for anyone', () => {
+      let state = setupActiveGame();
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+      // Direct player passes
+      state = gameReducer(state, { type: 'PASS' });
+      expect(state.players.every((p) => p.bonusAttempts === 0)).toBe(true);
+
+      // Passed player passes
+      state = gameReducer(state, { type: 'PASS' });
+      expect(state.players.every((p) => p.bonusAttempts === 0)).toBe(true);
+    });
+
+    it('passed player MARK_CORRECT increments BA by 1', () => {
+      let state = setupActiveGame();
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+      // Player 1 passes -> question passes to Player 2
+      state = gameReducer(state, { type: 'PASS' });
+      expect(state.currentQuestion?.whoseTurn).toBe('player-2');
+
+      // Player 2 answers correctly
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      const p1 = state.players.find((p) => p.id === 'player-1')!;
+      const p2 = state.players.find((p) => p.id === 'player-2')!;
+      expect(p1.bonusAttempts).toBe(0);
+      expect(p2.score).toBe(1);
+      expect(p2.bonusAttempts).toBe(1);
+    });
+
+    it('passed player MARK_WRONG increments BA by 1', () => {
+      let state = setupActiveGame();
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+      // Player 1 is wrong -> passes to Player 2
+      state = gameReducer(state, { type: 'MARK_WRONG' });
+      expect(state.currentQuestion?.whoseTurn).toBe('player-2');
+
+      // Player 2 is wrong on bonus attempt
+      state = gameReducer(state, { type: 'MARK_WRONG' });
+      const p2 = state.players.find((p) => p.id === 'player-2')!;
+      expect(p2.bonusAttempts).toBe(1);
+
+      // Passes to Player 3
+      expect(state.currentQuestion?.whoseTurn).toBe('player-3');
+      // Player 3 is wrong on bonus attempt (exhausting question)
+      state = gameReducer(state, { type: 'MARK_WRONG' });
+      const p3 = state.players.find((p) => p.id === 'player-3')!;
+      expect(p3.bonusAttempts).toBe(1);
+      expect(state.currentQuestion?.isComplete).toBe(true);
+    });
+
+    it('selects the player with lowest BA when passing', () => {
+      let state = setupActiveGame();
+      // Suppose Player 2 already has 1 BA, and Player 3 has 0 BA
+      state = {
+        ...state,
+        players: [
+          { id: 'player-1', name: 'Alice', score: 0, bonusAttempts: 0 },
+          { id: 'player-2', name: 'Bob', score: 5, bonusAttempts: 1 },
+          { id: 'player-3', name: 'Charlie', score: 10, bonusAttempts: 0 },
+        ],
+      };
+
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+      // Direct player = player-1, direction = forward -> pass order is [player-2, player-3]
+      expect(state.currentQuestion?.passOrder).toEqual(['player-2', 'player-3']);
+
+      // Player 1 passes -> among [player-2 (BA=1), player-3 (BA=0)], player-3 has lower BA!
+      state = gameReducer(state, { type: 'PASS' });
+      expect(state.currentQuestion?.whoseTurn).toBe('player-3');
+    });
+
+    it('breaks BA ties using passOrder direction order', () => {
+      let state = setupActiveGame();
+      // Both Player 2 and Player 3 have 0 BA
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+      // Pass order: [player-2, player-3]
+      state = gameReducer(state, { type: 'PASS' });
+      // Tied at 0 BA -> first in passOrder is player-2
+      expect(state.currentQuestion?.whoseTurn).toBe('player-2');
+    });
+
+    it('UNDO reverts BA increments on MARK_CORRECT and MARK_WRONG', () => {
+      let state = setupActiveGame();
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+
+      // Pass to Player 2
+      state = gameReducer(state, { type: 'PASS' });
+      expect(state.currentQuestion?.whoseTurn).toBe('player-2');
+
+      // Player 2 marked correct -> BA becomes 1
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(1);
+
+      // Undo -> BA reverts to 0
+      state = gameReducer(state, { type: 'UNDO' });
+      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(0);
+      expect(state.currentQuestion?.whoseTurn).toBe('player-2');
+
+      // Player 2 marked wrong -> BA becomes 1
+      state = gameReducer(state, { type: 'MARK_WRONG' });
+      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(1);
+
+      // Undo -> BA reverts to 0
+      state = gameReducer(state, { type: 'UNDO' });
+      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(0);
+      expect(state.currentQuestion?.whoseTurn).toBe('player-2');
+    });
+
+    it('RESET_TOPIC preserves bonusAttempts (stat tracked for whole quiz)', () => {
+      let state = setupActiveGame();
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: state.topics[0].id, questionIndex: 0 },
+      });
+
+      // Player 1 passes, Player 2 marks correct
+      state = gameReducer(state, { type: 'PASS' });
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      expect(state.players.find((p) => p.id === 'player-2')?.score).toBe(1);
+      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(1);
+
+      // Next question to return to board
+      state = gameReducer(state, { type: 'NEXT_QUESTION' });
+      expect(state.phase).toBe('topics');
+
+      // Reset topic 0: score is deducted, but BA is preserved
+      state = gameReducer(state, {
+        type: 'RESET_TOPIC',
+        payload: { topicId: state.topics[0].id },
+      });
+      const p2 = state.players.find((p) => p.id === 'player-2')!;
+      expect(p2.score).toBe(0);
+      expect(p2.bonusAttempts).toBe(1);
+    });
+  });
 });

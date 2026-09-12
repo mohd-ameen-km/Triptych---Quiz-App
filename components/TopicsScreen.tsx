@@ -15,6 +15,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useGame } from '@/components/GameProvider';
 import Scoreboard from '@/components/Scoreboard';
 import ResetConfirmationModal from '@/components/ResetConfirmationModal';
+import Logo from '@/components/Logo';
 import type { Column, GameMysteryBagEntry, GameTopic } from '@/types';
 import { COLUMNS, COLUMN_LABELS } from '@/types';
 
@@ -226,12 +227,10 @@ export default function TopicsScreen() {
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 py-3 sm:px-6 sticky top-0 z-20 shadow-xs">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center justify-between sm:justify-start gap-4">
-            <div>
-              <h1 className="text-xl font-black tracking-tight text-[#0D5C58]">
-                Triptych
-              </h1>
+            <div className="flex flex-col">
+              <Logo size="md" />
               {activePicker && (
-                <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-0.5 font-medium">
+                <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-1 font-medium pl-0.5">
                   <span className="h-2 w-2 rounded-full bg-[#C5A059] animate-pulse" />
                   <span>
                     <strong className="text-slate-900 font-bold">

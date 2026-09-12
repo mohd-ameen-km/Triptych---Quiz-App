@@ -161,7 +161,7 @@ Lost Cities	left	TRUE	1	Which city was rediscovered by Hiram Bingham in 1911?	Ma
 - **Language**: TypeScript (Strict Mode)
 - **Styling**: Tailwind CSS with custom theme variables
 - **Parser**: PapaParse with syntax normalization and schema validation
-- **Testing**: Vitest with 84 unit and integration tests
+- **Testing**: Vitest with 94 unit and integration tests
 
 ### State Machine & Reducer
 
@@ -183,14 +183,21 @@ All gameplay mutations flow through [`lib/gameReducer.ts`](file:///Users/ameenkm
             NEXT_QUESTION ──► Return to [TopicsScreen] or [ResultScreen]
 ```
 
-### Turn Order Mathematics
+### Turn Order Mathematics & Bonus Attempts (BA)
 
 All turn sequencing logic is isolated and unit-tested in [`lib/turnOrder.ts`](file:///Users/ameenkm/Projects/quizapp/lib/turnOrder.ts):
 
 - `getTopicPicker(pickIndex, seatOrder)`
 - `getPickDirection(pickIndex)`
 - `getPassOrder(directPlayer, direction, seatOrder)`
-- `getNextPlayer(passOrder, playersAttempted, scores)`
+- `getNextPlayer(passOrder, playersAttempted, bonusAttempts)`
+
+#### Bonus Attempts (BA) & Pass Priority Rules
+- **Definition**: A player earns a bonus attempt only when marked **Correct** or **Wrong** on a passed question (i.e. questions that reached them via a pass, where they are not the direct player).
+- **Direct Attempts**: The direct player who picked the topic never receives a BA regardless of outcome.
+- **Pass Actions**: Clicking **Pass** indicates no attempt was made, so BA remains unchanged.
+- **Pass Priority**: When a question passes, `getNextPlayer` selects the candidate who currently has the **lowest BA**. If candidates are tied on BA, ties are resolved using the direction-based `passOrder`.
+- **Persistence**: BA is tracked persistently across the entire tournament and is displayed transparently on the scoreboard (`Score: 3 · BA: 2`).
 
 ### File Structure
 
@@ -202,6 +209,7 @@ quizapp/
 │   └── page.tsx               # Orchestrator routing to current phase
 ├── components/
 │   ├── GameProvider.tsx       # React Context provider wrapping gameReducer
+│   ├── Logo.tsx               # Stately 3-panel Triptych crest and wordmark
 │   ├── QuestionScreen.tsx     # Two-column layout with sticky sidebar & controls
 │   ├── ResetConfirmationModal.tsx # Safe point deduction confirmation dialog
 │   ├── ResultScreen.tsx       # Final standings podium and leaderboard

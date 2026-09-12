@@ -113,18 +113,18 @@ export function getPassOrder(
  * Determine who answers next among the pass candidates.
  *
  * Among players in `passOrder` not yet in `attemptedPlayerIds`, picks whoever
- * has the lowest score. On a score tie, picks whichever player comes first
+ * has the lowest bonusAttempts. On a BA tie, picks whichever player comes first
  * in `passOrder`.
  *
  * @param passOrder           Ordered candidate player ids from `getPassOrder`.
  * @param attemptedPlayerIds  Player ids who have already attempted this question.
- * @param scores              Current scores mapped by player id.
+ * @param bonusAttempts       Current bonusAttempts mapped by player id.
  * @returns                   The next player id to attempt, or `null` if all have attempted.
  */
 export function getNextPlayer(
   passOrder: PlayerId[],
   attemptedPlayerIds: PlayerId[],
-  scores: Record<PlayerId, number>,
+  bonusAttempts: Record<PlayerId, number>,
 ): PlayerId | null {
   const attempted = new Set(attemptedPlayerIds);
   const remaining = passOrder.filter((id) => !attempted.has(id));
@@ -132,13 +132,13 @@ export function getNextPlayer(
   if (remaining.length === 0) return null;
 
   let minPlayer = remaining[0];
-  let minScore = scores[minPlayer] ?? 0;
+  let minBA = bonusAttempts[minPlayer] ?? 0;
 
   for (let i = 1; i < remaining.length; i++) {
     const player = remaining[i];
-    const score = scores[player] ?? 0;
-    if (score < minScore) {
-      minScore = score;
+    const ba = bonusAttempts[player] ?? 0;
+    if (ba < minBA) {
+      minBA = ba;
       minPlayer = player;
     }
   }

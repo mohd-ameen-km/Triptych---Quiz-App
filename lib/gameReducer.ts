@@ -184,6 +184,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         id: p.id,
         name: p.name,
         score: 0,
+        bonusAttempts: 0,
       }));
       return {
         ...state,
@@ -216,6 +217,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         phase: 'topics',
+        players: state.players.map((p) => ({
+          ...p,
+          score: 0,
+          bonusAttempts: 0,
+        })),
         turnOrder: {
           seatOrder,
           pickIndex,
@@ -316,15 +322,25 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'MARK_CORRECT': {
       if (!state.currentQuestion) return state;
       const winnerId = state.currentQuestion.whoseTurn;
-      const { topicId, questionIndex } = state.currentQuestion;
+      const { topicId, questionIndex, directPlayer } = state.currentQuestion;
+      const isBonus = winnerId !== directPlayer;
 
       const snapshot = createGameSnapshot(state);
       const history = [...(state.history ?? []), snapshot];
 
-      // Award 1 point to the current player and mark question complete
-      const updatedPlayers = state.players.map((p) =>
-        p.id === winnerId ? { ...p, score: p.score + 1 } : p,
-      );
+      // Award 1 point to the current player; increment bonusAttempts if not direct player
+      const updatedPlayers = state.players.map((p) => {
+        if (p.id === winnerId) {
+          return {
+            ...p,
+            score: p.score + 1,
+            bonusAttempts: isBonus
+              ? (p.bonusAttempts ?? 0) + 1
+              : (p.bonusAttempts ?? 0),
+          };
+        }
+        return p;
+      });
 
       const newScoreEvent: ScoreEvent = {
         playerId: winnerId,
@@ -354,16 +370,30 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const history = [...(state.history ?? []), snapshot];
 
       const currentTurn = state.currentQuestion.whoseTurn;
+      const isWrong = action.type === 'MARK_WRONG';
+      const isBonus =
+        isWrong && currentTurn !== state.currentQuestion.directPlayer;
+
+      // Update bonusAttempts if marked wrong on a pass attempt; PASS never touches BA
+      const updatedPlayers = isBonus
+        ? state.players.map((p) =>
+            p.id === currentTurn
+              ? { ...p, bonusAttempts: (p.bonusAttempts ?? 0) + 1 }
+              : p,
+          )
+        : state.players;
+
       const newAttempted = state.currentQuestion.playersAttempted.includes(
         currentTurn,
       )
         ? state.currentQuestion.playersAttempted
         : [...state.currentQuestion.playersAttempted, currentTurn];
 
-      // If all 3 players have attempted, mark question complete with nobody scoring
-      if (newAttempted.length >= state.players.length) {
+      // If all players have attempted, mark question complete with nobody scoring
+      if (newAttempted.length >= updatedPlayers.length) {
         return {
           ...state,
+          players: updatedPlayers,
           history,
           currentQuestion: {
             ...state.currentQuestion,
@@ -384,15 +414,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               state.turnOrder?.seatOrder ?? state.players.map((p) => p.id),
             );
 
-      const scores = Object.fromEntries(
-        state.players.map((p) => [p.id, p.score]),
+      const bonusAttempts = Object.fromEntries(
+        updatedPlayers.map((p) => [p.id, p.bonusAttempts ?? 0]),
       );
 
-      const nextPlayer = getNextPlayer(passOrder, newAttempted, scores);
+      const nextPlayer = getNextPlayer(
+        passOrder,
+        newAttempted,
+        bonusAttempts,
+      );
 
       if (!nextPlayer) {
         return {
           ...state,
+          players: updatedPlayers,
           history,
           currentQuestion: {
             ...state.currentQuestion,
@@ -405,6 +440,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       return {
         ...state,
+        players: updatedPlayers,
         history,
         currentQuestion: {
           ...state.currentQuestion,

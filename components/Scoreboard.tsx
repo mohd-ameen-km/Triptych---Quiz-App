@@ -75,17 +75,33 @@ export default function Scoreboard({
                   </span>
                 )}
               </div>
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <p
-                  className={`text-xl sm:text-2xl font-black tabular-nums ${
-                    isActive ? 'text-[#0D5C58]' : 'text-slate-900'
-                  }`}
-                >
-                  {player.score}
-                </p>
-                <span className="text-[10px] uppercase font-bold text-slate-400">
-                  pts
-                </span>
+              <div className="flex items-center gap-1.5 mt-0.5 text-xs font-bold flex-wrap">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                    Score:
+                  </span>
+                  <span
+                    className={`text-base sm:text-lg font-black tabular-nums ${
+                      isActive ? 'text-[#0D5C58]' : 'text-slate-900'
+                    }`}
+                  >
+                    {player.score}
+                  </span>
+                </div>
+                <span className="text-slate-300 font-bold">·</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                    BA:
+                  </span>
+                  <span
+                    className={`text-sm sm:text-base font-black tabular-nums ${
+                      isActive ? 'text-[#C5A059]' : 'text-slate-700'
+                    }`}
+                    title={`${player.bonusAttempts ?? 0} Bonus Attempts`}
+                  >
+                    {player.bonusAttempts ?? 0}
+                  </span>
+                </div>
               </div>
             </div>
 

@@ -138,6 +138,7 @@ export interface Player {
   id: string;
   name: string;
   score: number;
+  bonusAttempts: number;
 }
 
 // ---------------------------------------------------------------------------

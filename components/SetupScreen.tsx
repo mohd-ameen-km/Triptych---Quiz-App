@@ -15,6 +15,7 @@
 import React, { useCallback, useId, useRef, useState } from 'react';
 import { parseTsv } from '@/lib/tsv-parser';
 import { useGame } from '@/components/GameProvider';
+import Logo from '@/components/Logo';
 import type { Topic, MysteryBag } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -233,15 +234,15 @@ export default function SetupScreen() {
     <main className="bg-game flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg animate-fade-in-up">
         {/* ── Header ────────────────────────────────────────────────── */}
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center justify-center mb-3">
+        <div className="mb-10 text-center flex flex-col items-center">
+          <div className="inline-flex items-center justify-center mb-4">
             <span className="rounded-full bg-[#FBF6EA] border border-[#C5A059] px-3.5 py-1 text-xs font-black uppercase tracking-widest text-[#8A6B29]">
               Three-Player Quiz
             </span>
           </div>
-          <h1 className="mb-2 text-4xl font-black tracking-tight text-[#0D5C58] sm:text-5xl">
-            Triptych
-          </h1>
+          <div className="mb-3">
+            <Logo size="lg" />
+          </div>
           <p className="text-sm font-medium text-slate-500">
             Upload your quiz TSV file and name your players to begin
           </p>
