@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * TopicsScreen — the main 15-topic board view.
+ * TopicsScreen — the main 18-topic board view.
  *
  * Theme: White and Gold with Teal.
  * Strictly no emojis, no mystery badges on board cards, no column headers,
@@ -304,7 +304,6 @@ export default function TopicsScreen() {
                 return (
                   <MysteryBagCard
                     column={col}
-                    entryCount={bagEntries.length}
                     takenCount={takenCount}
                     unlocked={allTopicsTaken}
                     takerName={taker}
@@ -476,7 +475,6 @@ function TopicCard({ topic, players, onSelect, onReset }: TopicCardProps) {
 
 interface MysteryBagCardProps {
   column: Column;
-  entryCount: number;
   takenCount: number;
   unlocked: boolean;
   takerName?: string;
@@ -486,15 +484,13 @@ interface MysteryBagCardProps {
 
 function MysteryBagCard({
   column,
-  entryCount,
   takenCount,
   unlocked,
   takerName,
   onSelect,
   onReset,
 }: MysteryBagCardProps) {
-  const remaining = entryCount - takenCount;
-  const isTaken = unlocked && remaining === 0;
+  const isTaken = unlocked && takenCount > 0;
   const isLocked = !unlocked;
 
   return (

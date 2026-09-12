@@ -1,6 +1,6 @@
 # Triptych
 
-A strategic, high-stakes trivia platform designed for competitive three-player gameplay. Built with a bespoke **White and Gold with Stately Teal** aesthetic, **Triptych** combines a 15-topic board, cyclical positional pick rotations, lowest-score pass mechanics, non-blocking pacing timers, endgame mystery bags, and a complete multi-step global undo engine.
+A strategic, high-stakes trivia platform designed for competitive three-player gameplay. Built with a bespoke **White and Gold with Stately Teal** aesthetic, **Triptych** combines an 18-topic board, cyclical positional pick rotations, lowest-score pass mechanics, non-blocking pacing timers, endgame mystery bags, and a complete multi-step global undo engine.
 
 ---
 
@@ -34,7 +34,7 @@ A strategic, high-stakes trivia platform designed for competitive three-player g
 
 ## Overview
 
-In **Triptych**, three players (P1, P2, P3) compete across a structured 3-column board (**Left**, **Center**, **Right**). Each column contains 5 named topic cards, culminating in 15 core board topics, plus 3 mystery bags positioned at the base of each column that unlock in the endgame.
+In **Triptych**, three players (P1, P2, P3) compete across a structured 3-column board (**Left**, **Center**, **Right**). Each column contains 6 named topic cards, culminating in 18 core board topics, plus 3 mystery bags positioned at the base of each column that unlock in the endgame.
 
 Questions are delivered directly to the active topic picker, with missed questions passing to eligible opponents based on circular seating order and live scores.
 
@@ -89,9 +89,15 @@ All five core gameplay actions sit side-by-side in a single row with exact, unam
 
 ### Mystery Bags (Endgame Phase)
 
-- Positioned at the bottom of each column, mystery bags remain locked and disabled until all 15 named topics have been completed.
-- Once unlocked, clicking a mystery bag goes directly to its first unanswered mystery question—no intermediate modal.
-- **Isolated State**: Each mystery bag entry has an independent ID (`mystery-bag-${column}-${index}`). Taking a mystery bag marks **only** that specific bag entry as taken; named board topics in that column remain in their true respective states.
+- Positioned at the bottom of each column, mystery bags remain locked and disabled until all 18 named topics have been completed.
+- **Topic-Only Score Snapshot (`topicPhaseScore`)**: The exact moment the 18th topic completes, each player's score is snapshotted into `topicPhaseScore`. This internal ranking metric is never updated by points earned during mystery bag play (regular displayed scores continue to reflect true running totals everywhere in the UI).
+- **Pick Order Ranking**: Players are ranked to pick one mystery bag each across a fixed sequence of exactly 3 turns:
+  1. **Topic-Phase Score**: Lowest score picks first (ascending).
+  2. **Bonus Attempts (BA)**: Score ties broken by lowest BA.
+  3. **Initial Seat Order**: Persistent tie-breaker from setup `[P1, P2, P3]`.
+- **Selection & Question Flow**: The 1st-ranked player chooses any of the 3 mystery bags; the 2nd-ranked chooses from the remaining 2; the 3rd-ranked receives the final bag. Clicking an available mystery bag goes directly into the question without intermediate modals.
+- **Pass Direction**: All mystery bag questions treat rotation as **`forward`** using initial `seatOrder`, since mystery picks fall outside the 18-topic zigzag cycle.
+- **Isolated State & Resets**: Each mystery bag entry has an independent ID (`mystery-bag-${column}-${index}`). Taking a mystery bag marks only that specific bag entry as taken. If a named topic is reset after mystery bags unlock, the same point deduction applies to `topicPhaseScore` as to `score`. Resetting a mystery question deducts points from `score` but leaves `topicPhaseScore` unchanged.
 
 ### Granular Score Deduction & Topic Resets
 
@@ -146,8 +152,8 @@ Lost Cities	left	TRUE	1	Which city was rediscovered by Hiram Bingham in 1911?	Ma
 
 ### Game Modes
 
-1. **Standard Mode (15 Topics)**:
-   - Exactly 15 topics (5 in Left, 5 in Center, 5 in Right).
+1. **Standard Mode (18 Topics)**:
+   - Exactly 18 topics (6 in Left, 6 in Center, 6 in Right).
    - Exactly 3 mystery topics per column.
    - Exactly 1 mystery question per mystery topic.
 2. **Test Mode (3 Topics)**:
@@ -193,6 +199,7 @@ All turn sequencing logic is isolated and unit-tested in [`lib/turnOrder.ts`](fi
 - `getNextPlayer(passOrder, playersAttempted, bonusAttempts)`
 
 #### Bonus Attempts (BA) & Pass Priority Rules
+
 - **Definition**: A player earns a bonus attempt only when marked **Correct** or **Wrong** on a passed question (i.e. questions that reached them via a pass, where they are not the direct player).
 - **Direct Attempts**: The direct player who picked the topic never receives a BA regardless of outcome.
 - **Pass Actions**: Clicking **Pass** indicates no attempt was made, so BA remains unchanged.
@@ -215,7 +222,7 @@ quizapp/
 │   ├── ResultScreen.tsx       # Final standings podium and leaderboard
 │   ├── Scoreboard.tsx         # Reusable horizontal or vertical scoreboard
 │   ├── SetupScreen.tsx        # File upload, player setup, timer configuration
-│   └── TopicsScreen.tsx       # 15-topic board with mystery bags & board undo
+│   └── TopicsScreen.tsx       # 18-topic board with mystery bags & board undo
 ├── lib/
 │   ├── __tests__/
 │   │   ├── gameReducer.test.ts # Reducer, undo stack, mystery bag isolation tests
@@ -257,7 +264,7 @@ Visit [http://localhost:3000](http://localhost:3000) in your browser.
 ### Testing & Quality Assurance
 
 ```bash
-# Run unit and integration tests (84 test cases)
+# Run unit and integration tests (104 test cases)
 npm test
 
 # Check code style with Prettier

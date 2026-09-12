@@ -234,6 +234,7 @@ export interface GameSnapshot {
   scoreEvents: ScoreEvent[];
   directSeconds: number;
   passSeconds: number;
+  topicPhaseScore: Record<string, number> | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +253,7 @@ export interface GameState {
   directSeconds: number;
   passSeconds: number;
   history: GameSnapshot[];
+  topicPhaseScore: Record<string, number> | null;
 }
 
 // ---------------------------------------------------------------------------

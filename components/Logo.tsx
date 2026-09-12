@@ -20,8 +20,18 @@ export default function Logo({
   // Dimensions based on variant
   const emblemSizes = {
     sm: { w: 34, h: 34, viewBox: '0 0 48 48', textClass: 'text-xl' },
-    md: { w: 46, h: 46, viewBox: '0 0 48 48', textClass: 'text-2xl sm:text-3xl' },
-    lg: { w: 72, h: 72, viewBox: '0 0 48 48', textClass: 'text-4xl sm:text-5xl' },
+    md: {
+      w: 46,
+      h: 46,
+      viewBox: '0 0 48 48',
+      textClass: 'text-2xl sm:text-3xl',
+    },
+    lg: {
+      w: 72,
+      h: 72,
+      viewBox: '0 0 48 48',
+      textClass: 'text-4xl sm:text-5xl',
+    },
   };
 
   const current = emblemSizes[size];
@@ -96,14 +106,7 @@ export default function Logo({
           />
 
           {/* Golden base foundation plinth */}
-          <rect
-            x="7"
-            y="37"
-            width="34"
-            height="3"
-            rx="1.5"
-            fill="#C5A059"
-          />
+          <rect x="7" y="37" width="34" height="3" rx="1.5" fill="#C5A059" />
         </svg>
       </div>
 

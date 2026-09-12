@@ -55,16 +55,16 @@ function row(
 }
 
 /**
- * Generate a fully valid 15-topic TSV. Per column (left/center/right):
- *   - 5 topics, numbered 1–5
- *   - Topics 1–3 are mystery topics, topics 4–5 are normal
+ * Generate a fully valid 18-topic TSV. Per column (left/center/right):
+ *   - 6 topics, numbered 1–6
+ *   - Topics 1–3 are mystery topics, topics 4–6 are normal
  *   - Each topic has 2 questions: Q1 is non-mystery, Q2 is mystery for
  *     mystery topics and non-mystery for normal topics
  */
 function validTsv(): string {
   const lines = [HEADER];
   for (const col of ['left', 'center', 'right'] as const) {
-    for (let t = 1; t <= 5; t++) {
+    for (let t = 1; t <= 6; t++) {
       const name = `${col}_topic_${t}`;
       const isMystery = t <= 3;
       // Q1: always a normal question
@@ -107,11 +107,11 @@ describe('parseTsv', () => {
     const result = parseTsv(validTsv());
 
     expect(result.errors).toEqual([]);
-    expect(result.topics).toHaveLength(15);
+    expect(result.topics).toHaveLength(18);
 
-    // 5 topics per column
+    // 6 topics per column
     for (const col of ['left', 'center', 'right'] as const) {
-      expect(result.topics.filter((t) => t.column === col)).toHaveLength(5);
+      expect(result.topics.filter((t) => t.column === col)).toHaveLength(6);
     }
 
     // 3 mystery topics per column
@@ -146,13 +146,13 @@ describe('parseTsv', () => {
     }
   });
 
-  // ── Validation: not exactly 15 topics ──────────────────────────────
+  // ── Validation: not exactly 18 topics ──────────────────────────────
 
-  it('errors when there are fewer than 15 topics', () => {
-    // Build a TSV with only 14 topics (drop the last topic in "right")
+  it('errors when there are fewer than 18 topics', () => {
+    // Build a TSV with only 17 topics (drop the last topic in "right")
     const lines = [HEADER];
     for (const col of ['left', 'center', 'right'] as const) {
-      const topicCount = col === 'right' ? 4 : 5;
+      const topicCount = col === 'right' ? 5 : 6;
       for (let t = 1; t <= topicCount; t++) {
         const name = `${col}_t${t}`;
         const isMystery = t <= 3;
@@ -166,20 +166,20 @@ describe('parseTsv', () => {
     const result = parseTsv(lines.join('\n'));
 
     expect(result.errors).toContain(
-      'Expected exactly 15 topics, but found 14.',
+      'Expected exactly 18 topics, but found 17.',
     );
     expect(result.errors).toContain(
-      'Expected exactly 5 topics in the "right" column, but found 4.',
+      'Expected exactly 6 topics in the "right" column, but found 5.',
     );
   });
 
   // ── Validation: wrong number of topics per column ──────────────────
 
   it('errors when topics are unevenly distributed across columns', () => {
-    // 6 in left, 5 in center, 4 in right = 15 total, but wrong per-column
+    // 7 in left, 6 in center, 5 in right = 18 total, but wrong per-column
     const lines = [HEADER];
-    // left: 6 topics
-    for (let t = 1; t <= 6; t++) {
+    // left: 7 topics
+    for (let t = 1; t <= 7; t++) {
       const isMystery = t <= 3;
       lines.push(
         row(`L${t}`, 'left', String(isMystery), '1', 'false', 'Q', 'A'),
@@ -196,8 +196,8 @@ describe('parseTsv', () => {
         ),
       );
     }
-    // center: 5 topics
-    for (let t = 1; t <= 5; t++) {
+    // center: 6 topics
+    for (let t = 1; t <= 6; t++) {
       const isMystery = t <= 3;
       lines.push(
         row(`C${t}`, 'center', String(isMystery), '1', 'false', 'Q', 'A'),
@@ -214,8 +214,8 @@ describe('parseTsv', () => {
         ),
       );
     }
-    // right: 4 topics
-    for (let t = 1; t <= 4; t++) {
+    // right: 5 topics
+    for (let t = 1; t <= 5; t++) {
       const isMystery = t <= 3;
       lines.push(
         row(`R${t}`, 'right', String(isMystery), '1', 'false', 'Q', 'A'),
@@ -235,30 +235,43 @@ describe('parseTsv', () => {
 
     const result = parseTsv(lines.join('\n'));
 
-    // 15 topics total is correct, so no error about total count
+    // 18 topics total is correct, so no error about total count
     expect(
-      result.errors.some((e) => e.includes('Expected exactly 15 topics')),
+      result.errors.some((e) => e.includes('Expected exactly 18 topics')),
     ).toBe(false);
     expect(result.errors).toContain(
-      'Expected exactly 5 topics in the "left" column, but found 6.',
+      'Expected exactly 6 topics in the "left" column, but found 7.',
     );
     expect(result.errors).toContain(
-      'Expected exactly 5 topics in the "right" column, but found 4.',
+      'Expected exactly 6 topics in the "right" column, but found 5.',
     );
   });
 
   // ── Validation: wrong number of mystery topics per column ──────────
 
   it('errors when mystery topic count per column is not 3', () => {
-    // Make all 5 left topics mystery, 3 center mystery, 3 right mystery
+    // Make 5 left topics mystery (out of 6), 3 center mystery, 3 right mystery
     const lines = [HEADER];
-    // left: all 5 are mystery
-    for (let t = 1; t <= 5; t++) {
-      lines.push(row(`L${t}`, 'left', 'true', '1', 'false', 'Q', 'A'));
-      lines.push(row(`L${t}`, 'left', 'true', '2', 'true', 'Q', 'A'));
+    // left: 5 are mystery, 1 normal = 6 topics
+    for (let t = 1; t <= 6; t++) {
+      const isMystery = t <= 5;
+      lines.push(
+        row(`L${t}`, 'left', String(isMystery), '1', 'false', 'Q', 'A'),
+      );
+      lines.push(
+        row(
+          `L${t}`,
+          'left',
+          String(isMystery),
+          '2',
+          String(isMystery),
+          'Q',
+          'A',
+        ),
+      );
     }
-    // center: 3 mystery (correct)
-    for (let t = 1; t <= 5; t++) {
+    // center: 3 mystery (correct), 3 normal = 6 topics
+    for (let t = 1; t <= 6; t++) {
       const isMystery = t <= 3;
       lines.push(
         row(`C${t}`, 'center', String(isMystery), '1', 'false', 'Q', 'A'),
@@ -275,8 +288,8 @@ describe('parseTsv', () => {
         ),
       );
     }
-    // right: 3 mystery (correct)
-    for (let t = 1; t <= 5; t++) {
+    // right: 3 mystery (correct), 3 normal = 6 topics
+    for (let t = 1; t <= 6; t++) {
       const isMystery = t <= 3;
       lines.push(
         row(`R${t}`, 'right', String(isMystery), '1', 'false', 'Q', 'A'),
@@ -306,7 +319,7 @@ describe('parseTsv', () => {
   it('errors when a mystery topic has zero mystery questions', () => {
     const lines = [HEADER];
     for (const col of ['left', 'center', 'right'] as const) {
-      for (let t = 1; t <= 5; t++) {
+      for (let t = 1; t <= 6; t++) {
         const name = `${col}_t${t}`;
         const isMystery = t <= 3;
         lines.push(row(name, col, String(isMystery), '1', 'false', 'Q', 'A'));
@@ -337,7 +350,7 @@ describe('parseTsv', () => {
   it('errors when a mystery topic has more than 1 mystery question', () => {
     const lines = [HEADER];
     for (const col of ['left', 'center', 'right'] as const) {
-      for (let t = 1; t <= 5; t++) {
+      for (let t = 1; t <= 6; t++) {
         const name = `${col}_t${t}`;
         const isMystery = t <= 3;
         // Q1 and Q2 both marked as mystery for mystery topics
@@ -371,7 +384,7 @@ describe('parseTsv', () => {
     // Build a valid base, then break one topic by making all its questions mystery
     const lines = [HEADER];
     for (const col of ['left', 'center', 'right'] as const) {
-      for (let t = 1; t <= 5; t++) {
+      for (let t = 1; t <= 6; t++) {
         const name = `${col}_t${t}`;
         const isMystery = t <= 3;
 

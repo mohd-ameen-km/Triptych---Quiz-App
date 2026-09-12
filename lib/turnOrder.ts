@@ -145,3 +145,42 @@ export function getNextPlayer(
 
   return minPlayer;
 }
+
+/**
+ * Determine the pick order for the endgame mystery bags.
+ *
+ * Ranking criteria:
+ * 1. topicPhaseScore ascending (lowest score picks first)
+ * 2. bonusAttempts ascending (lowest BA picks first on score tie)
+ * 3. initial seatOrder from setup (tie-breaker)
+ *
+ * @param players           List of players with id, score, and bonusAttempts.
+ * @param seatOrder         Fixed initial seat order [P1, P2, P3] from setup.
+ * @param topicPhaseScore   Snapshot of scores when all 18 topics were completed.
+ * @returns                 Array of player ids in pick order [1st, 2nd, 3rd].
+ */
+export function getMysteryPickOrder(
+  players: { id: PlayerId; bonusAttempts?: number; score?: number }[],
+  seatOrder: PlayerId[],
+  topicPhaseScore: Record<PlayerId, number>,
+): PlayerId[] {
+  return [...players]
+    .sort((a, b) => {
+      const scoreA = topicPhaseScore[a.id] ?? a.score ?? 0;
+      const scoreB = topicPhaseScore[b.id] ?? b.score ?? 0;
+      if (scoreA !== scoreB) {
+        return scoreA - scoreB;
+      }
+
+      const baA = a.bonusAttempts ?? 0;
+      const baB = b.bonusAttempts ?? 0;
+      if (baA !== baB) {
+        return baA - baB;
+      }
+
+      const idxA = seatOrder.indexOf(a.id);
+      const idxB = seatOrder.indexOf(b.id);
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    })
+    .map((p) => p.id);
+}

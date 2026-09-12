@@ -188,7 +188,7 @@ export function parseTsv(fileText: string): ParseResult {
 
   // ── 4. Structural validations ──────────────────────────────────────
   // Allow 3-topic test mode (1 topic per column, all mystery topics)
-  // as well as standard 15-topic mode (5 per column, 3 mystery per column).
+  // as well as standard 18-topic mode (6 per column, 3 mystery per column).
   const isTestMode = topics.length === 3;
 
   if (isTestMode) {
@@ -216,17 +216,17 @@ export function parseTsv(fileText: string): ParseResult {
     }
   } else {
     // Standard game validations:
-    // 4a. Exactly 15 topics total
-    if (topics.length !== 15) {
-      errors.push(`Expected exactly 15 topics, but found ${topics.length}.`);
+    // 4a. Exactly 18 topics total
+    if (topics.length !== 18) {
+      errors.push(`Expected exactly 18 topics, but found ${topics.length}.`);
     }
 
-    // 4b. 5 topics per column
+    // 4b. 6 topics per column
     for (const col of COLUMNS) {
       const count = topics.filter((t) => t.column === col).length;
-      if (count !== 5) {
+      if (count !== 6) {
         errors.push(
-          `Expected exactly 5 topics in the "${col}" column, but found ${count}.`,
+          `Expected exactly 6 topics in the "${col}" column, but found ${count}.`,
         );
       }
     }

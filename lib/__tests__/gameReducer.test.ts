@@ -7,7 +7,7 @@ function createMockData() {
   const mysteryBag: MysteryBag = { left: [], center: [], right: [] };
 
   for (const col of ['left', 'center', 'right'] as const) {
-    for (let t = 1; t <= 5; t++) {
+    for (let t = 1; t <= 6; t++) {
       const isMystery = t <= 3;
       const topicName = `${col}_topic_${t}`;
       const questions = [
@@ -428,7 +428,7 @@ describe('gameReducer - Topics and Turn Order integration', () => {
   it('Mystery Bag flow: allows selection when all topics are taken, reuses scoring and reset mechanics', () => {
     const state = setupActiveGame();
 
-    // Mark all 15 topics taken on the board
+    // Mark all 18 topics taken on the board
     const allTakenState: GameState = {
       ...state,
       topics: state.topics.map((t) => ({
@@ -752,6 +752,11 @@ describe('gameReducer - Topics and Turn Order integration', () => {
         }
         return { ...t, taken: false, takenBy: null };
       }),
+      topicPhaseScore: {
+        'player-1': 5,
+        'player-2': 5,
+        'player-3': 0,
+      },
     };
 
     const mysteryEntry = testState.mysteryBags.left[0];
@@ -928,7 +933,10 @@ describe('gameReducer - Topics and Turn Order integration', () => {
         payload: { topicId: state.topics[0].id, questionIndex: 0 },
       });
       // Direct player = player-1, direction = forward -> pass order is [player-2, player-3]
-      expect(state.currentQuestion?.passOrder).toEqual(['player-2', 'player-3']);
+      expect(state.currentQuestion?.passOrder).toEqual([
+        'player-2',
+        'player-3',
+      ]);
 
       // Player 1 passes -> among [player-2 (BA=1), player-3 (BA=0)], player-3 has lower BA!
       state = gameReducer(state, { type: 'PASS' });
@@ -961,20 +969,28 @@ describe('gameReducer - Topics and Turn Order integration', () => {
 
       // Player 2 marked correct -> BA becomes 1
       state = gameReducer(state, { type: 'MARK_CORRECT' });
-      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(1);
+      expect(
+        state.players.find((p) => p.id === 'player-2')?.bonusAttempts,
+      ).toBe(1);
 
       // Undo -> BA reverts to 0
       state = gameReducer(state, { type: 'UNDO' });
-      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(0);
+      expect(
+        state.players.find((p) => p.id === 'player-2')?.bonusAttempts,
+      ).toBe(0);
       expect(state.currentQuestion?.whoseTurn).toBe('player-2');
 
       // Player 2 marked wrong -> BA becomes 1
       state = gameReducer(state, { type: 'MARK_WRONG' });
-      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(1);
+      expect(
+        state.players.find((p) => p.id === 'player-2')?.bonusAttempts,
+      ).toBe(1);
 
       // Undo -> BA reverts to 0
       state = gameReducer(state, { type: 'UNDO' });
-      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(0);
+      expect(
+        state.players.find((p) => p.id === 'player-2')?.bonusAttempts,
+      ).toBe(0);
       expect(state.currentQuestion?.whoseTurn).toBe('player-2');
     });
 
@@ -989,7 +1005,9 @@ describe('gameReducer - Topics and Turn Order integration', () => {
       state = gameReducer(state, { type: 'PASS' });
       state = gameReducer(state, { type: 'MARK_CORRECT' });
       expect(state.players.find((p) => p.id === 'player-2')?.score).toBe(1);
-      expect(state.players.find((p) => p.id === 'player-2')?.bonusAttempts).toBe(1);
+      expect(
+        state.players.find((p) => p.id === 'player-2')?.bonusAttempts,
+      ).toBe(1);
 
       // Next question to return to board
       state = gameReducer(state, { type: 'NEXT_QUESTION' });
@@ -1003,6 +1021,404 @@ describe('gameReducer - Topics and Turn Order integration', () => {
       const p2 = state.players.find((p) => p.id === 'player-2')!;
       expect(p2.score).toBe(0);
       expect(p2.bonusAttempts).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Mystery bag phase & topicPhaseScore
+  // -------------------------------------------------------------------------
+
+  describe('Mystery bag phase & topicPhaseScore', () => {
+    it('captures topicPhaseScore snapshot the moment the 18th topic completes', () => {
+      const base = setupActiveGame();
+
+      // Mark the first 17 topics as completed, with topic 17 untaken
+      let state: GameState = {
+        ...base,
+        topics: base.topics.map((t, idx) => ({
+          ...t,
+          taken: idx < 17,
+          takenBy: idx < 17 ? 'player-1' : null,
+        })),
+        players: [
+          { id: 'player-1', name: 'Alice', score: 6, bonusAttempts: 1 },
+          { id: 'player-2', name: 'Bob', score: 4, bonusAttempts: 2 },
+          { id: 'player-3', name: 'Charlie', score: 2, bonusAttempts: 0 },
+        ],
+        topicPhaseScore: null,
+      };
+
+      expect(state.topicPhaseScore).toBeNull();
+
+      // Play the 18th topic (topic 17)
+      const finalTopic = state.topics[17];
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: { topicId: finalTopic.id, questionIndex: 0 },
+      });
+
+      // Direct player (player-1) marks Q1 correct
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      // Next question advances to Q2 of the topic
+      state = gameReducer(state, { type: 'NEXT_QUESTION' });
+      expect(state.phase).toBe('question');
+      expect(state.currentQuestion?.questionIndex).toBe(1);
+
+      // Direct player marks Q2 correct
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      expect(state.players.find((p) => p.id === 'player-1')?.score).toBe(8);
+      // Still in question phase, snapshot is captured upon NEXT_QUESTION completing the topic
+      expect(state.topicPhaseScore).toBeNull();
+
+      // Complete 18th topic
+      state = gameReducer(state, { type: 'NEXT_QUESTION' });
+      expect(state.phase).toBe('topics');
+      expect(state.topics.every((t) => t.taken)).toBe(true);
+
+      // Snapshot is captured at that instant!
+      expect(state.topicPhaseScore).toEqual({
+        'player-1': 8,
+        'player-2': 4,
+        'player-3': 2,
+      });
+
+      // Turn order for 1st mystery pick goes to lowest topicPhaseScore (Charlie: 2)
+      expect(state.turnOrder?.starterPlayerId).toBe('player-3');
+      expect(state.turnOrder?.direction).toBe('forward');
+    });
+
+    it('points earned during mystery bag play do NOT alter topicPhaseScore', () => {
+      const base = setupActiveGame();
+
+      // All 18 topics completed, with snapshot captured
+      let state: GameState = {
+        ...base,
+        topics: base.topics.map((t) => ({
+          ...t,
+          taken: true,
+          takenBy: 'player-1',
+        })),
+        players: [
+          { id: 'player-1', name: 'Alice', score: 5, bonusAttempts: 0 },
+          { id: 'player-2', name: 'Bob', score: 3, bonusAttempts: 0 },
+          { id: 'player-3', name: 'Charlie', score: 1, bonusAttempts: 0 },
+        ],
+        topicPhaseScore: {
+          'player-1': 5,
+          'player-2': 3,
+          'player-3': 1,
+        },
+        turnOrder: {
+          seatOrder: ['player-1', 'player-2', 'player-3'],
+          pickIndex: 18,
+          starterPlayerId: 'player-3', // Charlie has lowest score (1)
+          direction: 'forward',
+        },
+      };
+
+      const mysteryEntry = state.mysteryBags.left[0];
+      const sourceTopic = state.topics.find(
+        (t) => t.name === mysteryEntry.topicName,
+      )!;
+      const mysteryQIdx = sourceTopic.questions.findIndex(
+        (q) => q.isMysteryQuestion,
+      );
+
+      // Charlie selects Left Mystery Bag
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: {
+          topicId: sourceTopic.id,
+          questionIndex: mysteryQIdx,
+          mysteryBagId: mysteryEntry.id,
+        },
+      });
+
+      expect(state.currentQuestion?.directPlayer).toBe('player-3');
+      expect(state.currentQuestion?.whoseTurn).toBe('player-3');
+      expect(state.currentQuestion?.direction).toBe('forward');
+
+      // Charlie answers correctly: score becomes 2
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      expect(state.players.find((p) => p.id === 'player-3')?.score).toBe(2);
+
+      // topicPhaseScore MUST NOT change!
+      expect(state.topicPhaseScore).toEqual({
+        'player-1': 5,
+        'player-2': 3,
+        'player-3': 1,
+      });
+
+      // Complete mystery question
+      state = gameReducer(state, { type: 'NEXT_QUESTION' });
+      expect(state.phase).toBe('topics');
+
+      // topicPhaseScore is still strictly the original topic-only scores
+      expect(state.topicPhaseScore).toEqual({
+        'player-1': 5,
+        'player-2': 3,
+        'player-3': 1,
+      });
+
+      // 2nd mystery pick goes to 2nd ranked player: Bob (score 3)
+      expect(state.turnOrder?.starterPlayerId).toBe('player-2');
+      expect(state.turnOrder?.direction).toBe('forward');
+    });
+
+    it('ranks mystery picks by score -> BA -> seatOrder for a sequence of 3 turns', () => {
+      const base = setupActiveGame();
+
+      // Alice & Bob have same topicPhaseScore (2), but Bob has lower BA (1 vs 3)
+      // Charlie has higher topicPhaseScore (4)
+      let state: GameState = {
+        ...base,
+        topics: base.topics.map((t) => ({
+          ...t,
+          taken: true,
+          takenBy: 'player-1',
+        })),
+        players: [
+          { id: 'player-1', name: 'Alice', score: 2, bonusAttempts: 3 },
+          { id: 'player-2', name: 'Bob', score: 2, bonusAttempts: 1 },
+          { id: 'player-3', name: 'Charlie', score: 4, bonusAttempts: 0 },
+        ],
+        topicPhaseScore: {
+          'player-1': 2,
+          'player-2': 2,
+          'player-3': 4,
+        },
+        turnOrder: {
+          seatOrder: ['player-1', 'player-2', 'player-3'],
+          pickIndex: 18,
+          starterPlayerId: 'player-2', // Bob picks 1st (tied score 2, lower BA)
+          direction: 'forward',
+        },
+      };
+
+      // Turn 1: Bob (player-2) selects Center Mystery Bag
+      const bag1 = state.mysteryBags.center[0];
+      const topic1 = state.topics.find((t) => t.name === bag1.topicName)!;
+      const q1Idx = topic1.questions.findIndex((q) => q.isMysteryQuestion);
+
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: {
+          topicId: topic1.id,
+          questionIndex: q1Idx,
+          mysteryBagId: bag1.id,
+        },
+      });
+      expect(state.currentQuestion?.directPlayer).toBe('player-2');
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      state = gameReducer(state, { type: 'NEXT_QUESTION' });
+
+      // Turn 2: Alice (player-1) picks 2nd (score 2, higher BA than Bob, lower score than Charlie)
+      expect(state.turnOrder?.starterPlayerId).toBe('player-1');
+
+      const bag2 = state.mysteryBags.left[0];
+      const topic2 = state.topics.find((t) => t.name === bag2.topicName)!;
+      const q2Idx = topic2.questions.findIndex((q) => q.isMysteryQuestion);
+
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: {
+          topicId: topic2.id,
+          questionIndex: q2Idx,
+          mysteryBagId: bag2.id,
+        },
+      });
+      expect(state.currentQuestion?.directPlayer).toBe('player-1');
+      state = gameReducer(state, { type: 'MARK_WRONG' });
+      state = gameReducer(state, { type: 'PASS' });
+      state = gameReducer(state, { type: 'NEXT_QUESTION' });
+
+      // Turn 3: Charlie (player-3) picks 3rd (highest score 4)
+      expect(state.turnOrder?.starterPlayerId).toBe('player-3');
+
+      const bag3 = state.mysteryBags.right[0];
+      const topic3 = state.topics.find((t) => t.name === bag3.topicName)!;
+      const q3Idx = topic3.questions.findIndex((q) => q.isMysteryQuestion);
+
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: {
+          topicId: topic3.id,
+          questionIndex: q3Idx,
+          mysteryBagId: bag3.id,
+        },
+      });
+      expect(state.currentQuestion?.directPlayer).toBe('player-3');
+      state = gameReducer(state, { type: 'MARK_CORRECT' });
+      state = gameReducer(state, { type: 'NEXT_QUESTION' });
+
+      // All 3 bags have now been chosen
+      const takenBags = Object.values(state.mysteryBags)
+        .flat()
+        .filter((e) => e.taken);
+      expect(takenBags).toHaveLength(3);
+    });
+
+    it('treats mystery-bag passes as forward direction based on initial seatOrder', () => {
+      const base = setupActiveGame();
+      const seatOrder = ['player-1', 'player-2', 'player-3'];
+
+      let state: GameState = {
+        ...base,
+        topics: base.topics.map((t) => ({
+          ...t,
+          taken: true,
+          takenBy: 'player-1',
+        })),
+        players: [
+          { id: 'player-1', name: 'Alice', score: 5, bonusAttempts: 2 },
+          { id: 'player-2', name: 'Bob', score: 1, bonusAttempts: 4 },
+          { id: 'player-3', name: 'Charlie', score: 3, bonusAttempts: 1 },
+        ],
+        topicPhaseScore: {
+          'player-1': 5,
+          'player-2': 1,
+          'player-3': 3,
+        },
+        turnOrder: {
+          seatOrder,
+          pickIndex: 18,
+          starterPlayerId: 'player-2',
+          direction: 'forward',
+        },
+      };
+
+      // Bob picks Left Mystery Bag
+      const bag = state.mysteryBags.left[0];
+      const topic = state.topics.find((t) => t.name === bag.topicName)!;
+      const qIdx = topic.questions.findIndex((q) => q.isMysteryQuestion);
+
+      state = gameReducer(state, {
+        type: 'SELECT_TOPIC',
+        payload: {
+          topicId: topic.id,
+          questionIndex: qIdx,
+          mysteryBagId: bag.id,
+        },
+      });
+
+      // Direction must be forward
+      expect(state.currentQuestion?.direction).toBe('forward');
+      // Pass order from player-2 forward: player-3, then player-1
+      expect(state.currentQuestion?.passOrder).toEqual([
+        'player-3',
+        'player-1',
+      ]);
+
+      // Bob marks wrong: question passes to player with lowest BA between Charlie (1) and Alice (2)
+      // Charlie has BA 1 < Alice's 2, so it passes to Charlie (player-3)
+      state = gameReducer(state, { type: 'MARK_WRONG' });
+      expect(state.currentQuestion?.whoseTurn).toBe('player-3');
+    });
+
+    it('RESET_TOPIC on a named topic after snapshot deducts points from topicPhaseScore as well as score', () => {
+      const base = setupActiveGame();
+
+      let state: GameState = {
+        ...base,
+        topics: base.topics.map((t) => ({
+          ...t,
+          taken: true,
+          takenBy: 'player-1',
+        })),
+        players: [
+          { id: 'player-1', name: 'Alice', score: 5, bonusAttempts: 0 },
+          { id: 'player-2', name: 'Bob', score: 3, bonusAttempts: 0 },
+          { id: 'player-3', name: 'Charlie', score: 2, bonusAttempts: 0 },
+        ],
+        topicPhaseScore: {
+          'player-1': 5,
+          'player-2': 3,
+          'player-3': 2,
+        },
+        scoreEvents: [
+          {
+            playerId: 'player-1',
+            topicId: base.topics[0].id,
+            questionIndex: 0,
+            points: 1,
+          },
+        ],
+      };
+
+      // Reset topic 0: Alice scored 1 point on topic 0
+      state = gameReducer(state, {
+        type: 'RESET_TOPIC',
+        payload: { topicId: base.topics[0].id },
+      });
+
+      // Both score and topicPhaseScore have 1 point deducted for Alice
+      expect(state.players.find((p) => p.id === 'player-1')?.score).toBe(4);
+      expect(state.topicPhaseScore?.['player-1']).toBe(4);
+      // Other players unaffected
+      expect(state.topicPhaseScore?.['player-2']).toBe(3);
+      expect(state.topicPhaseScore?.['player-3']).toBe(2);
+    });
+
+    it('RESET_TOPIC on a mystery bag deducts from score but does NOT touch topicPhaseScore', () => {
+      const base = setupActiveGame();
+
+      let state: GameState = {
+        ...base,
+        topics: base.topics.map((t) => ({
+          ...t,
+          taken: true,
+          takenBy: 'player-1',
+        })),
+        players: [
+          { id: 'player-1', name: 'Alice', score: 5, bonusAttempts: 0 },
+          { id: 'player-2', name: 'Bob', score: 3, bonusAttempts: 0 },
+          { id: 'player-3', name: 'Charlie', score: 3, bonusAttempts: 0 }, // scored 1 on mystery bag (was 2)
+        ],
+        topicPhaseScore: {
+          'player-1': 5,
+          'player-2': 3,
+          'player-3': 2, // snapshot was 2!
+        },
+        scoreEvents: [
+          {
+            playerId: 'player-3',
+            topicId: base.topics[0].id,
+            questionIndex: 1,
+            points: 1,
+          },
+        ],
+        mysteryBags: {
+          ...base.mysteryBags,
+          left: base.mysteryBags.left.map((e, idx) =>
+            idx === 0 ? { ...e, taken: true, takenBy: 'player-3' } : e,
+          ),
+        },
+      };
+
+      const mysteryBagEntry = state.mysteryBags.left[0];
+
+      // Reset mystery bag entry
+      state = gameReducer(state, {
+        type: 'RESET_TOPIC',
+        payload: {
+          topicId: base.topics[0].id,
+          questionIndex: 1,
+          mysteryBagId: mysteryBagEntry.id,
+        },
+      });
+
+      // Charlie's score is deducted from 3 to 2
+      expect(state.players.find((p) => p.id === 'player-3')?.score).toBe(2);
+      // topicPhaseScore is UNTOUCHED!
+      expect(state.topicPhaseScore).toEqual({
+        'player-1': 5,
+        'player-2': 3,
+        'player-3': 2,
+      });
+      // Mystery bag is untaken again
+      expect(state.mysteryBags.left[0].taken).toBe(false);
+      // Charlie (lowest score 2) is restored as starterPlayerId for mystery pick
+      expect(state.turnOrder?.starterPlayerId).toBe('player-3');
     });
   });
 });

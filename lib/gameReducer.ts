@@ -24,6 +24,7 @@ import {
   getPickDirection,
   getPassOrder,
   getNextPlayer,
+  getMysteryPickOrder,
 } from '@/lib/turnOrder';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,7 @@ export function createInitialState(): GameState {
     directSeconds: 25,
     passSeconds: 20,
     history: [],
+    topicPhaseScore: null,
   };
 }
 
@@ -95,6 +97,9 @@ export function createGameSnapshot(state: GameState): GameSnapshot {
     scoreEvents: state.scoreEvents.map((e) => ({ ...e })),
     directSeconds: state.directSeconds,
     passSeconds: state.passSeconds,
+    topicPhaseScore: state.topicPhaseScore
+      ? { ...state.topicPhaseScore }
+      : null,
   };
 }
 
@@ -232,6 +237,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         directSeconds,
         passSeconds,
         history: [],
+        topicPhaseScore: null,
       };
     }
 
@@ -262,10 +268,35 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         state.turnOrder.seatOrder && state.turnOrder.seatOrder.length > 0
           ? state.turnOrder.seatOrder
           : state.players.map((p) => p.id);
-      const pickIndex = state.turnOrder.pickIndex ?? 0;
-      const directPlayer = getTopicPicker(pickIndex, seatOrder);
-      const direction = getPickDirection(pickIndex);
-      const passOrder = getPassOrder(directPlayer, direction, seatOrder);
+
+      let directPlayer: string;
+      let direction: 'forward' | 'reverse';
+      let passOrder: string[];
+
+      if (isMystery) {
+        const topicScores =
+          state.topicPhaseScore ??
+          Object.fromEntries(state.players.map((p) => [p.id, p.score]));
+        const mysteryOrder = getMysteryPickOrder(
+          state.players,
+          seatOrder,
+          topicScores,
+        );
+
+        const takenMysteryCount = Object.values(state.mysteryBags)
+          .flat()
+          .filter((e) => e.taken).length;
+        const mysteryTurnIdx = Math.min(takenMysteryCount, 2);
+
+        directPlayer = mysteryOrder[mysteryTurnIdx] ?? mysteryOrder[0];
+        direction = 'forward';
+        passOrder = getPassOrder(directPlayer, direction, seatOrder);
+      } else {
+        const pickIndex = state.turnOrder.pickIndex ?? 0;
+        directPlayer = getTopicPicker(pickIndex, seatOrder);
+        direction = getPickDirection(pickIndex);
+        passOrder = getPassOrder(directPlayer, direction, seatOrder);
+      }
 
       const snapshot = createGameSnapshot(state);
       const history = [...(state.history ?? []), snapshot];
@@ -349,10 +380,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         points: 1,
       };
 
+      const currentTopic = state.topics.find((t) => t.id === topicId);
+      const isMystery =
+        Boolean(state.currentQuestion.mysteryBagId) ||
+        (currentTopic?.questions[questionIndex]?.isMysteryQuestion ?? false);
+
+      const updatedTopicPhaseScore =
+        state.topicPhaseScore && !isMystery
+          ? {
+              ...state.topicPhaseScore,
+              [winnerId]: (state.topicPhaseScore[winnerId] ?? 0) + 1,
+            }
+          : state.topicPhaseScore;
+
       return {
         ...state,
         players: updatedPlayers,
         scoreEvents: [...(state.scoreEvents ?? []), newScoreEvent],
+        topicPhaseScore: updatedTopicPhaseScore,
         history,
         currentQuestion: {
           ...state.currentQuestion,
@@ -418,11 +463,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         updatedPlayers.map((p) => [p.id, p.bonusAttempts ?? 0]),
       );
 
-      const nextPlayer = getNextPlayer(
-        passOrder,
-        newAttempted,
-        bonusAttempts,
-      );
+      const nextPlayer = getNextPlayer(passOrder, newAttempted, bonusAttempts);
 
       if (!nextPlayer) {
         return {
@@ -532,45 +573,82 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // If no questions remain, mark topic fully complete and advance pickIndex in 6-cycle
+      // If no questions remain, determine taken state and turn order
+      const nextTopics = isMystery
+        ? state.topics
+        : state.topics.map((t) =>
+            t.id === topicId ? { ...t, taken: true, takenBy: directId } : t,
+          );
+
+      const nextMysteryBags =
+        isMystery && mysteryBagId
+          ? {
+              ...state.mysteryBags,
+              [topic.column]: state.mysteryBags[topic.column].map((e) =>
+                e.id === mysteryBagId
+                  ? { ...e, taken: true, takenBy: directId }
+                  : e,
+              ),
+            }
+          : state.mysteryBags;
+
+      const boardTopics = nextTopics.filter((t) =>
+        t.questions.some((q) => !q.isMysteryQuestion),
+      );
+      const allNamedTopicsCompleted =
+        boardTopics.length > 0
+          ? boardTopics.every((t) => t.taken)
+          : nextTopics.length > 0 && nextTopics.every((t) => t.taken);
+
+      let nextTopicPhaseScore = state.topicPhaseScore;
+      if (allNamedTopicsCompleted && !nextTopicPhaseScore) {
+        nextTopicPhaseScore = Object.fromEntries(
+          state.players.map((p) => [p.id, p.score]),
+        );
+      }
+
       let nextTurnOrder = state.turnOrder;
       if (state.turnOrder && state.players.length > 0) {
         const seatOrder =
           state.turnOrder.seatOrder && state.turnOrder.seatOrder.length > 0
             ? state.turnOrder.seatOrder
             : state.players.map((p) => p.id);
-        const nextPickIndex = (state.turnOrder.pickIndex ?? 0) + 1;
-        nextTurnOrder = {
-          seatOrder,
-          pickIndex: nextPickIndex,
-          starterPlayerId: getTopicPicker(nextPickIndex, seatOrder),
-          direction: getPickDirection(nextPickIndex),
-        };
+
+        if (allNamedTopicsCompleted) {
+          const completedMysteryCount = Object.values(nextMysteryBags)
+            .flat()
+            .filter((e) => e.taken).length;
+          const mysteryTurnIdx = Math.min(completedMysteryCount, 2);
+          const mysteryOrder = getMysteryPickOrder(
+            state.players,
+            seatOrder,
+            nextTopicPhaseScore ?? {},
+          );
+          nextTurnOrder = {
+            seatOrder,
+            pickIndex: 18 + completedMysteryCount,
+            starterPlayerId: mysteryOrder[mysteryTurnIdx] ?? mysteryOrder[0],
+            direction: 'forward',
+          };
+        } else {
+          const nextPickIndex = (state.turnOrder.pickIndex ?? 0) + 1;
+          nextTurnOrder = {
+            seatOrder,
+            pickIndex: nextPickIndex,
+            starterPlayerId: getTopicPicker(nextPickIndex, seatOrder),
+            direction: getPickDirection(nextPickIndex),
+          };
+        }
       }
 
       return {
         ...state,
         phase: 'topics',
-        // When completing a mystery question, DO NOT mark the named topic taken!
-        topics: isMystery
-          ? state.topics
-          : state.topics.map((t) =>
-              t.id === topicId ? { ...t, taken: true, takenBy: directId } : t,
-            ),
-        // When completing a mystery question, ensure ONLY that specific mystery bag entry has takenBy: directId
-        mysteryBags:
-          isMystery && mysteryBagId
-            ? {
-                ...state.mysteryBags,
-                [topic.column]: state.mysteryBags[topic.column].map((e) =>
-                  e.id === mysteryBagId
-                    ? { ...e, taken: true, takenBy: directId }
-                    : e,
-                ),
-              }
-            : state.mysteryBags,
+        topics: nextTopics,
+        mysteryBags: nextMysteryBags,
         turnOrder: nextTurnOrder,
         currentQuestion: null,
+        topicPhaseScore: nextTopicPhaseScore,
         history,
       };
     }
@@ -634,41 +712,94 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         (e) => !eventIdsToRemove.has(e),
       );
 
-      // 4. Mark untaken, clear question progress
+      // 4. Update topicPhaseScore if resetting a named topic after capture
+      let updatedTopicPhaseScore = state.topicPhaseScore;
+      if (!isResettingMystery && state.topicPhaseScore) {
+        updatedTopicPhaseScore = { ...state.topicPhaseScore };
+        for (const [playerId, toDeduct] of Object.entries(deductions)) {
+          if (toDeduct > 0 && updatedTopicPhaseScore[playerId] !== undefined) {
+            updatedTopicPhaseScore[playerId] = Math.max(
+              0,
+              updatedTopicPhaseScore[playerId] - toDeduct,
+            );
+          }
+        }
+      }
+
+      const updatedTopics = isResettingMystery
+        ? state.topics
+        : state.topics.map((t) =>
+            t.id === topicId
+              ? {
+                  ...t,
+                  taken: false,
+                  takenBy: null,
+                  directPlayer: undefined,
+                  direction: undefined,
+                }
+              : t,
+          );
+
+      const updatedMysteryBags =
+        topic && isResettingMystery
+          ? {
+              ...state.mysteryBags,
+              [topic.column]: state.mysteryBags[topic.column].map((e) =>
+                (
+                  targetMysteryId
+                    ? e.id === targetMysteryId
+                    : e.topicName === topic.name
+                )
+                  ? { ...e, taken: false, takenBy: null }
+                  : e,
+              ),
+            }
+          : state.mysteryBags;
+
+      let updatedTurnOrder = state.turnOrder;
+      if (state.turnOrder && state.players.length > 0) {
+        const seatOrder =
+          state.turnOrder.seatOrder && state.turnOrder.seatOrder.length > 0
+            ? state.turnOrder.seatOrder
+            : state.players.map((p) => p.id);
+
+        const boardTopics = updatedTopics.filter((t) =>
+          t.questions.some((q) => !q.isMysteryQuestion),
+        );
+        const allCompleted =
+          boardTopics.length > 0
+            ? boardTopics.every((t) => t.taken)
+            : updatedTopics.length > 0 && updatedTopics.every((t) => t.taken);
+
+        if (allCompleted) {
+          const completedMysteryCount = Object.values(updatedMysteryBags)
+            .flat()
+            .filter((e) => e.taken).length;
+          const mysteryTurnIdx = Math.min(completedMysteryCount, 2);
+          const mysteryOrder = getMysteryPickOrder(
+            updatedPlayers,
+            seatOrder,
+            updatedTopicPhaseScore ?? {},
+          );
+          updatedTurnOrder = {
+            seatOrder,
+            pickIndex: 18 + completedMysteryCount,
+            starterPlayerId: mysteryOrder[mysteryTurnIdx] ?? mysteryOrder[0],
+            direction: 'forward',
+          };
+        }
+      }
+
       return {
         ...state,
         phase: isCurrent ? 'topics' : state.phase,
         players: updatedPlayers,
         scoreEvents: updatedScoreEvents,
+        topicPhaseScore: updatedTopicPhaseScore,
+        turnOrder: updatedTurnOrder,
         currentQuestion: isCurrent ? null : state.currentQuestion,
-        topics: isResettingMystery
-          ? state.topics
-          : state.topics.map((t) =>
-              t.id === topicId
-                ? {
-                    ...t,
-                    taken: false,
-                    takenBy: null,
-                    directPlayer: undefined,
-                    direction: undefined,
-                  }
-                : t,
-            ),
-        mysteryBags:
-          topic && isResettingMystery
-            ? {
-                ...state.mysteryBags,
-                [topic.column]: state.mysteryBags[topic.column].map((e) =>
-                  (
-                    targetMysteryId
-                      ? e.id === targetMysteryId
-                      : e.topicName === topic.name
-                  )
-                    ? { ...e, taken: false, takenBy: null }
-                    : e,
-                ),
-              }
-            : state.mysteryBags,
+        topics: updatedTopics,
+        mysteryBags: updatedMysteryBags,
         history,
       };
     }

@@ -4,6 +4,7 @@ import {
   getPickDirection,
   getPassOrder,
   getNextPlayer,
+  getMysteryPickOrder,
 } from '../turnOrder';
 
 describe('turnOrder', () => {
@@ -151,9 +152,88 @@ describe('turnOrder', () => {
 
         it('after both players have attempted -> returns null', () => {
           const bonusAttempts = { [first]: 1, [second]: 2 };
-          expect(getNextPlayer(passOrder, [first, second], bonusAttempts)).toBeNull();
+          expect(
+            getNextPlayer(passOrder, [first, second], bonusAttempts),
+          ).toBeNull();
         });
       });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 5. Mystery pick order (score ascending -> BA ascending -> seat order)
+  // -------------------------------------------------------------------------
+
+  describe('getMysteryPickOrder', () => {
+    it('ranks players by topicPhaseScore ascending (lowest score picks first)', () => {
+      const players = [
+        { id: TOM, bonusAttempts: 2 },
+        { id: JIM, bonusAttempts: 1 },
+        { id: CAM, bonusAttempts: 0 },
+      ];
+      const topicPhaseScore = {
+        [TOM]: 5,
+        [JIM]: 2,
+        [CAM]: 8,
+      };
+      // Lowest score: Jim (2), then Tom (5), then Cam (8)
+      expect(getMysteryPickOrder(players, SEAT_ORDER, topicPhaseScore)).toEqual(
+        [JIM, TOM, CAM],
+      );
+    });
+
+    it('breaks score ties by lowest bonusAttempts (BA ascending)', () => {
+      const players = [
+        { id: TOM, bonusAttempts: 4 },
+        { id: JIM, bonusAttempts: 1 },
+        { id: CAM, bonusAttempts: 2 },
+      ];
+      // All have the same score of 3
+      const topicPhaseScore = {
+        [TOM]: 3,
+        [JIM]: 3,
+        [CAM]: 3,
+      };
+      // Lowest BA: Jim (1), then Cam (2), then Tom (4)
+      expect(getMysteryPickOrder(players, SEAT_ORDER, topicPhaseScore)).toEqual(
+        [JIM, CAM, TOM],
+      );
+    });
+
+    it('breaks score AND bonusAttempts ties using fixed initial seatOrder [P1, P2, P3]', () => {
+      const players = [
+        { id: CAM, bonusAttempts: 0 },
+        { id: JIM, bonusAttempts: 0 },
+        { id: TOM, bonusAttempts: 0 },
+      ];
+      // All scores 0, all BA 0
+      const topicPhaseScore = {
+        [TOM]: 0,
+        [JIM]: 0,
+        [CAM]: 0,
+      };
+      // Ties broken by seat order: Tom (P1), Jim (P2), Cam (P3)
+      expect(getMysteryPickOrder(players, SEAT_ORDER, topicPhaseScore)).toEqual(
+        [TOM, JIM, CAM],
+      );
+    });
+
+    it('handles mixed conditions: 2 players tie on score but differ in BA, 1 player has distinct score', () => {
+      const players = [
+        { id: TOM, bonusAttempts: 3 }, // score 4, BA 3
+        { id: JIM, bonusAttempts: 1 }, // score 4, BA 1
+        { id: CAM, bonusAttempts: 5 }, // score 2, BA 5
+      ];
+      const topicPhaseScore = {
+        [TOM]: 4,
+        [JIM]: 4,
+        [CAM]: 2,
+      };
+      // Lowest score first: Cam (2)
+      // Then tie between Tom & Jim on score 4: Jim has lower BA (1 < 3), so Jim, then Tom
+      expect(getMysteryPickOrder(players, SEAT_ORDER, topicPhaseScore)).toEqual(
+        [CAM, JIM, TOM],
+      );
     });
   });
 });
