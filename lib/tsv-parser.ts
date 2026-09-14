@@ -187,82 +187,52 @@ export function parseTsv(fileText: string): ParseResult {
   });
 
   // ── 4. Structural validations ──────────────────────────────────────
-  // Allow 3-topic test mode (1 topic per column, all mystery topics)
-  // as well as standard 18-topic mode (6 per column, 3 mystery per column).
-  const isTestMode = topics.length === 3;
+  // 4a. Exactly 18 topics total
+  if (topics.length !== 18) {
+    errors.push(`Expected exactly 18 topics, but found ${topics.length}.`);
+  }
 
-  if (isTestMode) {
-    // Test mode validations:
-    // 4a. 1 topic per column
-    for (const col of COLUMNS) {
-      const count = topics.filter((t) => t.column === col).length;
-      if (count !== 1) {
-        errors.push(
-          `Test mode expected 1 topic in the "${col}" column, but found ${count}.`,
-        );
-      }
+  // 4b. 6 topics per column
+  for (const col of COLUMNS) {
+    const count = topics.filter((t) => t.column === col).length;
+    if (count !== 6) {
+      errors.push(
+        `Expected exactly 6 topics in the "${col}" column, but found ${count}.`,
+      );
     }
+  }
 
-    // 4b. Ensure mystery topics have at least 1 mystery question
-    for (const topic of topics) {
-      if (topic.isMysteryTopic) {
-        const mysteryQs = topic.questions.filter((q) => q.isMysteryQuestion);
-        if (mysteryQs.length === 0) {
-          errors.push(
-            `Mystery topic "${topic.name}" must have at least 1 mystery question.`,
-          );
-        }
-      }
+  // 4c. Exactly 3 mystery topics per column
+  for (const col of COLUMNS) {
+    const mysteryCount = topics.filter(
+      (t) => t.column === col && t.isMysteryTopic,
+    ).length;
+    if (mysteryCount !== 3) {
+      errors.push(
+        `Expected exactly 3 mystery topics in the "${col}" column, but found ${mysteryCount}.`,
+      );
     }
-  } else {
-    // Standard game validations:
-    // 4a. Exactly 18 topics total
-    if (topics.length !== 18) {
-      errors.push(`Expected exactly 18 topics, but found ${topics.length}.`);
-    }
+  }
 
-    // 4b. 6 topics per column
-    for (const col of COLUMNS) {
-      const count = topics.filter((t) => t.column === col).length;
-      if (count !== 6) {
-        errors.push(
-          `Expected exactly 6 topics in the "${col}" column, but found ${count}.`,
-        );
-      }
+  // 4d. Exactly 1 mystery question per mystery topic
+  for (const topic of topics) {
+    if (!topic.isMysteryTopic) continue;
+    const mysteryQs = topic.questions.filter((q) => q.isMysteryQuestion);
+    if (mysteryQs.length !== 1) {
+      errors.push(
+        `Mystery topic "${topic.name}" must have exactly 1 mystery question, ` +
+          `but has ${mysteryQs.length}.`,
+      );
     }
+  }
 
-    // 4c. Exactly 3 mystery topics per column
-    for (const col of COLUMNS) {
-      const mysteryCount = topics.filter(
-        (t) => t.column === col && t.isMysteryTopic,
-      ).length;
-      if (mysteryCount !== 3) {
-        errors.push(
-          `Expected exactly 3 mystery topics in the "${col}" column, but found ${mysteryCount}.`,
-        );
-      }
-    }
-
-    // 4d. Exactly 1 mystery question per mystery topic
-    for (const topic of topics) {
-      if (!topic.isMysteryTopic) continue;
-      const mysteryQs = topic.questions.filter((q) => q.isMysteryQuestion);
-      if (mysteryQs.length !== 1) {
-        errors.push(
-          `Mystery topic "${topic.name}" must have exactly 1 mystery question, ` +
-            `but has ${mysteryQs.length}.`,
-        );
-      }
-    }
-
-    // 4e. Every topic has at least one non-mystery question
-    for (const topic of topics) {
-      const nonMysteryQs = topic.questions.filter((q) => !q.isMysteryQuestion);
-      if (nonMysteryQs.length === 0) {
-        errors.push(
-          `Topic "${topic.name}" must have at least one non-mystery question.`,
-        );
-      }
+  // 4e. Every topic has at least one non-mystery question
+  for (const topic of topics) {
+    const nonMysteryQs = topic.questions.filter((q) => !q.isMysteryQuestion);
+    if (nonMysteryQs.length === 0) {
+      errors.push(
+        `Topic "${topic.name}" must have at least one non-mystery question.`,
+      );
     }
   }
 

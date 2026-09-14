@@ -305,6 +305,7 @@ export default function TopicsScreen() {
                   <MysteryBagCard
                     column={col}
                     takenCount={takenCount}
+                    totalCount={bagEntries.length}
                     unlocked={allTopicsTaken}
                     takerName={taker}
                     onSelect={() => handleSelectMysteryBag(col)}
@@ -410,31 +411,16 @@ function TopicCard({ topic, players, onSelect, onReset }: TopicCardProps) {
   const isTaken = topic.taken;
   const takerName = playerName(players, topic.takenBy);
 
-  return (
-    <button
-      type="button"
-      className={`topic-card group relative w-full rounded-2xl px-5 py-4 text-left transition-all duration-200 ${
-        isTaken ? 'topic-card-taken' : 'topic-card-available'
-      }`}
-      onClick={() => !isTaken && onSelect(topic)}
-      disabled={isTaken}
-      aria-label={
-        isTaken
-          ? `${topic.name} — taken by ${takerName}`
-          : `Select ${topic.name}`
-      }
-    >
-      {/* Topic name — mystery and non-mystery look 100% identical */}
-      <p
-        className={`text-base sm:text-lg font-bold leading-snug ${
-          isTaken ? 'text-slate-400 line-through' : 'text-slate-900'
-        }`}
+  if (isTaken) {
+    return (
+      <div
+        className="topic-card topic-card-taken group relative w-full rounded-2xl px-5 py-4 text-left transition-all duration-200"
+        aria-label={`${topic.name} — taken by ${takerName}`}
       >
-        {topic.name}
-      </p>
+        <p className="text-base sm:text-lg font-bold leading-snug text-slate-400 line-through">
+          {topic.name}
+        </p>
 
-      {/* Taken overlay */}
-      {isTaken && (
         <div className="mt-2 flex items-center justify-between">
           <span className="text-xs sm:text-sm text-[#0D5C58] font-bold flex items-center gap-1">
             <span>✓</span>
@@ -444,7 +430,7 @@ function TopicCard({ topic, players, onSelect, onReset }: TopicCardProps) {
           {/* Reset button */}
           <button
             type="button"
-            className="reset-btn flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-200 hover:text-rose-600"
+            className="reset-btn flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-200 hover:text-rose-600 cursor-pointer z-10"
             onClick={(e) => onReset(topic, e)}
             aria-label={`Reset ${topic.name}`}
             title="Reset topic"
@@ -464,7 +450,20 @@ function TopicCard({ topic, players, onSelect, onReset }: TopicCardProps) {
             </svg>
           </button>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="topic-card topic-card-available group relative w-full rounded-2xl px-5 py-4 text-left transition-all duration-200 cursor-pointer"
+      onClick={() => onSelect(topic)}
+      aria-label={`Select ${topic.name}`}
+    >
+      <p className="text-base sm:text-lg font-bold leading-snug text-slate-900">
+        {topic.name}
+      </p>
     </button>
   );
 }
@@ -476,6 +475,7 @@ function TopicCard({ topic, players, onSelect, onReset }: TopicCardProps) {
 interface MysteryBagCardProps {
   column: Column;
   takenCount: number;
+  totalCount: number;
   unlocked: boolean;
   takerName?: string;
   onSelect: () => void;
@@ -485,57 +485,27 @@ interface MysteryBagCardProps {
 function MysteryBagCard({
   column,
   takenCount,
+  totalCount,
   unlocked,
   takerName,
   onSelect,
   onReset,
 }: MysteryBagCardProps) {
-  const isTaken = unlocked && takenCount > 0;
+  const isTaken = unlocked && totalCount > 0 && takenCount >= totalCount;
   const isLocked = !unlocked;
 
-  return (
-    <button
-      type="button"
-      className={`mystery-bag-card group w-full rounded-2xl px-5 py-4 text-left transition-all duration-200 ${
-        isLocked
-          ? 'mystery-bag-locked cursor-not-allowed'
-          : isTaken
-            ? 'topic-card-taken cursor-default'
-            : 'mystery-bag-unlocked cursor-pointer'
-      }`}
-      onClick={() => {
-        if (!isLocked && !isTaken) onSelect();
-      }}
-      disabled={isLocked || isTaken}
-      aria-label={
-        isLocked
-          ? `${COLUMN_LABELS[column]} Mystery Bag — locked`
-          : isTaken
-            ? `${COLUMN_LABELS[column]} Mystery Bag — completed`
-            : `Select ${COLUMN_LABELS[column]} Mystery Bag`
-      }
-    >
-      <div className="flex items-center justify-between">
-        <p
-          className={`text-base sm:text-lg font-bold leading-snug ${
-            isLocked
-              ? 'text-slate-400'
-              : isTaken
-                ? 'text-slate-400 line-through'
-                : 'text-[#8A6B29]'
-          }`}
-        >
-          {COLUMN_LABELS[column]} Mystery Bag
-        </p>
+  if (isTaken) {
+    return (
+      <div
+        className="mystery-bag-card topic-card-taken group w-full rounded-2xl px-5 py-4 text-left transition-all duration-200 cursor-default"
+        aria-label={`${COLUMN_LABELS[column]} Mystery Bag — completed`}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-base sm:text-lg font-bold leading-snug text-slate-400 line-through">
+            {COLUMN_LABELS[column]} Mystery Bag
+          </p>
+        </div>
 
-        {!isLocked && !isTaken && (
-          <span className="text-xs text-[#0D5C58] font-bold group-hover:translate-x-1 transition-transform">
-            Open →
-          </span>
-        )}
-      </div>
-
-      {isTaken && (
         <div className="mt-2 flex items-center justify-between">
           <span className="text-xs sm:text-sm text-[#0D5C58] font-bold flex items-center gap-1">
             <span>✓</span>
@@ -545,7 +515,7 @@ function MysteryBagCard({
           {/* Reset button */}
           <button
             type="button"
-            className="reset-btn flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-200 hover:text-rose-600"
+            className="reset-btn flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-200 hover:text-rose-600 cursor-pointer z-10"
             onClick={(e) => onReset(e)}
             aria-label={`Reset ${COLUMN_LABELS[column]} Mystery Bag`}
             title="Reset mystery bag"
@@ -565,7 +535,39 @@ function MysteryBagCard({
             </svg>
           </button>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  if (isLocked) {
+    return (
+      <div
+        className="mystery-bag-card mystery-bag-locked group w-full rounded-2xl px-5 py-4 text-left transition-all duration-200 cursor-not-allowed"
+        aria-label={`${COLUMN_LABELS[column]} Mystery Bag — locked`}
+      >
+        <p className="text-base sm:text-lg font-bold leading-snug text-slate-400">
+          {COLUMN_LABELS[column]} Mystery Bag
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="mystery-bag-card mystery-bag-unlocked group w-full rounded-2xl px-5 py-4 text-left transition-all duration-200 cursor-pointer"
+      onClick={onSelect}
+      aria-label={`Select ${COLUMN_LABELS[column]} Mystery Bag`}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-base sm:text-lg font-bold leading-snug text-[#8A6B29]">
+          {COLUMN_LABELS[column]} Mystery Bag
+        </p>
+
+        <span className="text-xs text-[#0D5C58] font-bold group-hover:translate-x-1 transition-transform">
+          Open →
+        </span>
+      </div>
     </button>
   );
 }

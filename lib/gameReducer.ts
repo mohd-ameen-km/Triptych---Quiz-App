@@ -19,6 +19,7 @@ import type {
   ScoreEvent,
   Topic,
 } from '@/types';
+import { COLUMNS } from '@/types';
 import {
   getTopicPicker,
   getPickDirection,
@@ -283,12 +284,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           topicScores,
         );
 
-        const takenMysteryCount = Object.values(state.mysteryBags)
-          .flat()
-          .filter((e) => e.taken).length;
-        const mysteryTurnIdx = Math.min(takenMysteryCount, 2);
+        // If this mystery bag was already started, preserve the player who chose it
+        const existingTaker = (state.mysteryBags[topic.column] ?? []).find(
+          (e) => e.taken,
+        )?.takenBy;
 
-        directPlayer = mysteryOrder[mysteryTurnIdx] ?? mysteryOrder[0];
+        if (existingTaker) {
+          directPlayer = existingTaker;
+        } else {
+          // Count columns where mystery bags have already been picked/started
+          const startedOrCompletedBags = COLUMNS.filter((col) =>
+            (state.mysteryBags[col] ?? []).some((e) => e.taken),
+          ).length;
+          const mysteryTurnIdx = Math.min(startedOrCompletedBags, 2);
+          directPlayer = mysteryOrder[mysteryTurnIdx] ?? mysteryOrder[0];
+        }
+
         direction = 'forward';
         passOrder = getPassOrder(directPlayer, direction, seatOrder);
       } else {
@@ -522,10 +533,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
 
+    case 'GO_TO_BOARD':
     case 'NEXT_QUESTION': {
-      if (!state.currentQuestion) return state;
-      const snapshot = createGameSnapshot(state);
-      const history = [...(state.history ?? []), snapshot];
+      if (!state.currentQuestion) {
+        return { ...state, phase: 'topics' };
+      }
 
       const { topicId, questionIndex, directPlayer, mysteryBagId } =
         state.currentQuestion;
@@ -537,6 +549,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         state.players[0]?.id;
 
       if (!topic) {
+        const snapshot = createGameSnapshot(state);
+        const history = [...(state.history ?? []), snapshot];
         return {
           ...state,
           phase: 'topics',
@@ -549,31 +563,82 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const isMystery =
         Boolean(mysteryBagId) || (currentQ?.isMysteryQuestion ?? false);
 
-      // Find if there is a next playable non-mystery question in this topic
-      const nextQIndex = isMystery
-        ? -1
-        : topic.questions.findIndex(
+      // NEXT_QUESTION advances to the next question within this topic or mystery bag if available.
+      // GO_TO_BOARD always returns directly to the topics board.
+      if (action.type === 'NEXT_QUESTION') {
+        if (!isMystery) {
+          const nextQIndex = topic.questions.findIndex(
             (q, idx) => idx > questionIndex && !q.isMysteryQuestion,
           );
 
-      if (nextQIndex !== -1) {
-        // Advance to the topic's next question, reset attempted list and turn to directPlayer
-        return {
-          ...state,
-          history,
-          currentQuestion: {
-            ...state.currentQuestion,
-            questionIndex: nextQIndex,
-            whoseTurn: directId,
-            playersAttempted: [],
-            revealed: false,
-            isComplete: false,
-            startedAt: new Date().toISOString(),
-          },
-        };
+          if (nextQIndex !== -1) {
+            const snapshot = createGameSnapshot(state);
+            const history = [...(state.history ?? []), snapshot];
+            return {
+              ...state,
+              history,
+              currentQuestion: {
+                ...state.currentQuestion,
+                questionIndex: nextQIndex,
+                whoseTurn: directId,
+                playersAttempted: [],
+                revealed: false,
+                isComplete: false,
+                startedAt: new Date().toISOString(),
+              },
+            };
+          }
+        } else {
+          // Mystery bag: check if there are more unanswered questions in this column's mystery bag
+          const colBag = state.mysteryBags[topic.column] ?? [];
+          const nextEntry = colBag.find(
+            (e) => !e.taken && e.id !== mysteryBagId,
+          );
+
+          if (nextEntry) {
+            const nextTopic = state.topics.find(
+              (t) => t.name === nextEntry.topicName,
+            );
+            if (nextTopic) {
+              const nextQIdx = nextTopic.questions.findIndex(
+                (q) => q.isMysteryQuestion,
+              );
+              const snapshot = createGameSnapshot(state);
+              const history = [...(state.history ?? []), snapshot];
+
+              return {
+                ...state,
+                history,
+                mysteryBags: {
+                  ...state.mysteryBags,
+                  [topic.column]: state.mysteryBags[topic.column].map((e) =>
+                    e.id === nextEntry.id
+                      ? { ...e, taken: true, takenBy: directId }
+                      : e,
+                  ),
+                },
+                currentQuestion: {
+                  ...state.currentQuestion,
+                  topicId: nextTopic.id,
+                  questionIndex: nextQIdx !== -1 ? nextQIdx : 0,
+                  mysteryBagId: nextEntry.id,
+                  whoseTurn: directId,
+                  directPlayer: directId,
+                  playersAttempted: [],
+                  revealed: false,
+                  isComplete: false,
+                  startedAt: new Date().toISOString(),
+                },
+              };
+            }
+          }
+        }
       }
 
-      // If no questions remain, determine taken state and turn order
+      const snapshot = createGameSnapshot(state);
+      const history = [...(state.history ?? []), snapshot];
+
+      // If returning to board (or no questions remain), determine taken state and turn order
       const nextTopics = isMystery
         ? state.topics
         : state.topics.map((t) =>
@@ -615,10 +680,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             : state.players.map((p) => p.id);
 
         if (allNamedTopicsCompleted) {
-          const completedMysteryCount = Object.values(nextMysteryBags)
-            .flat()
-            .filter((e) => e.taken).length;
-          const mysteryTurnIdx = Math.min(completedMysteryCount, 2);
+          const completedBagsCount = COLUMNS.filter(
+            (col) =>
+              (nextMysteryBags[col] ?? []).length > 0 &&
+              (nextMysteryBags[col] ?? []).every((e) => e.taken),
+          ).length;
+          const mysteryTurnIdx = Math.min(completedBagsCount, 2);
           const mysteryOrder = getMysteryPickOrder(
             state.players,
             seatOrder,
@@ -626,7 +693,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           );
           nextTurnOrder = {
             seatOrder,
-            pickIndex: 18 + completedMysteryCount,
+            pickIndex: 18 + completedBagsCount,
             starterPlayerId: mysteryOrder[mysteryTurnIdx] ?? mysteryOrder[0],
             direction: 'forward',
           };
@@ -772,10 +839,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             : updatedTopics.length > 0 && updatedTopics.every((t) => t.taken);
 
         if (allCompleted) {
-          const completedMysteryCount = Object.values(updatedMysteryBags)
-            .flat()
-            .filter((e) => e.taken).length;
-          const mysteryTurnIdx = Math.min(completedMysteryCount, 2);
+          const completedBagsCount = COLUMNS.filter(
+            (col) =>
+              (updatedMysteryBags[col] ?? []).length > 0 &&
+              (updatedMysteryBags[col] ?? []).every((e) => e.taken),
+          ).length;
+          const mysteryTurnIdx = Math.min(completedBagsCount, 2);
           const mysteryOrder = getMysteryPickOrder(
             updatedPlayers,
             seatOrder,
@@ -783,7 +852,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           );
           updatedTurnOrder = {
             seatOrder,
-            pickIndex: 18 + completedMysteryCount,
+            pickIndex: 18 + completedBagsCount,
             starterPlayerId: mysteryOrder[mysteryTurnIdx] ?? mysteryOrder[0],
             direction: 'forward',
           };

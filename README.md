@@ -150,14 +150,12 @@ Ancient Wonders	left	FALSE	2	What temple was built in Ephesus for a goddess?	Tem
 Lost Cities	left	TRUE	1	Which city was rediscovered by Hiram Bingham in 1911?	Machu Picchu	TRUE
 ```
 
-### Game Modes
+### Game Structure (18 Topics)
 
-1. **Standard Mode (18 Topics)**:
-   - Exactly 18 topics (6 in Left, 6 in Center, 6 in Right).
-   - Exactly 3 mystery topics per column.
-   - Exactly 1 mystery question per mystery topic.
-2. **Test Mode (3 Topics)**:
-   - Quick-start prototype mode: 1 topic per column, all mystery topics with at least 1 mystery question.
+- Exactly 18 topics total (6 in Left, 6 in Center, 6 in Right).
+- Exactly 3 mystery topics per column (9 total).
+- Exactly 1 mystery question per mystery topic (feeding 3 mystery questions into each column's mystery bag).
+- At least one non-mystery question per topic.
 
 ---
 

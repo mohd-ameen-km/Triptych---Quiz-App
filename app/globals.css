@@ -345,10 +345,15 @@ body {
 /* ── Reset button in taken cards ────────────────────────────────────── */
 
 .reset-btn {
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  opacity: 0.7;
+  cursor: pointer;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
 }
 
-.topic-card-taken:hover .reset-btn {
+.topic-card-taken:hover .reset-btn,
+.mystery-bag-card:hover .reset-btn {
   opacity: 1;
 }

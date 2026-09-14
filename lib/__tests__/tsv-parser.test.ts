@@ -431,10 +431,10 @@ describe('parseTsv', () => {
     );
   });
 
-  // ── Test Mode: 3 topics total (1 per column, all mystery) ─────────
+  // ── Rejection of non-18-topic inputs ──────────────────────────────
 
-  describe('3-topic test mode', () => {
-    it('successfully parses a 3-topic TSV with 1 mystery topic per column', () => {
+  describe('strict 18-topic validation', () => {
+    it('rejects a 3-topic TSV and enforces standard 18-topic validation', () => {
       const tsv = [
         HEADER,
         row('Left Mystery', 'left', 'true', '1', 'true', 'Left Q?', 'Left Ans'),
@@ -460,44 +460,15 @@ describe('parseTsv', () => {
 
       const result = parseTsv(tsv);
 
-      expect(result.errors).toEqual([]);
-      expect(result.topics).toHaveLength(3);
-      expect(result.mysteryBag.left).toHaveLength(1);
-      expect(result.mysteryBag.center).toHaveLength(1);
-      expect(result.mysteryBag.right).toHaveLength(1);
-      expect(result.mysteryBag.left[0].question.questionText).toBe('Left Q?');
-    });
-
-    it('errors when 3 topics are not distributed 1 per column', () => {
-      const tsv = [
-        HEADER,
-        row('Left 1', 'left', 'true', '1', 'true', 'Q', 'A'),
-        row('Left 2', 'left', 'true', '1', 'true', 'Q', 'A'),
-        row('Center 1', 'center', 'true', '1', 'true', 'Q', 'A'),
-      ].join('\n');
-
-      const result = parseTsv(tsv);
-
+      expect(result.errors).toContain('Expected exactly 18 topics, but found 3.');
       expect(result.errors).toContain(
-        'Test mode expected 1 topic in the "left" column, but found 2.',
+        'Expected exactly 6 topics in the "left" column, but found 1.',
       );
       expect(result.errors).toContain(
-        'Test mode expected 1 topic in the "right" column, but found 0.',
+        'Expected exactly 6 topics in the "center" column, but found 1.',
       );
-    });
-
-    it('errors when a mystery topic in 3-topic mode has no mystery question', () => {
-      const tsv = [
-        HEADER,
-        row('Left Mystery', 'left', 'true', '1', 'false', 'Q', 'A'), // IsMysteryQuestion is false
-        row('Center Mystery', 'center', 'true', '1', 'true', 'Q', 'A'),
-        row('Right Mystery', 'right', 'true', '1', 'true', 'Q', 'A'),
-      ].join('\n');
-
-      const result = parseTsv(tsv);
-
       expect(result.errors).toContain(
-        'Mystery topic "Left Mystery" must have at least 1 mystery question.',
+        'Expected exactly 6 topics in the "right" column, but found 1.',
       );
     });
   });

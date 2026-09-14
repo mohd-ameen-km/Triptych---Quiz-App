@@ -20,7 +20,7 @@ import { COLUMN_LABELS } from '@/types';
 
 export default function QuestionScreen() {
   const { state, dispatch } = useGame();
-  const { currentQuestion, topics, players } = state;
+  const { currentQuestion, topics, players, mysteryBags } = state;
   const directSeconds = state.directSeconds ?? 25;
   const passSeconds = state.passSeconds ?? 20;
 
@@ -41,15 +41,31 @@ export default function QuestionScreen() {
     [players, currentQuestion?.whoseTurn],
   );
 
-  // ── Check if topic has more questions after this one ────────────────
+  // ── Check if topic or mystery bag has more questions after this one ──
   const hasMoreQuestions = useMemo(() => {
     if (!topic || !currentQuestion) return false;
     const currQ = topic.questions[currentQuestion.questionIndex];
-    if (currQ?.isMysteryQuestion) return false;
+    if (currQ?.isMysteryQuestion) {
+      const colBag = mysteryBags[topic.column] ?? [];
+      return colBag.some(
+        (e) => !e.taken && e.id !== currentQuestion.mysteryBagId,
+      );
+    }
     return topic.questions.some(
       (q, idx) => idx > currentQuestion.questionIndex && !q.isMysteryQuestion,
     );
-  }, [topic, currentQuestion]);
+  }, [topic, currentQuestion, mysteryBags]);
+
+  // Mystery bag question sequence index within this column's bag
+  const mysteryBagInfo = useMemo(() => {
+    if (!topic || !currentQuestion?.mysteryBagId) return null;
+    const colBag = mysteryBags[topic.column] ?? [];
+    const idx = colBag.findIndex((e) => e.id === currentQuestion.mysteryBagId);
+    return {
+      index: idx !== -1 ? idx + 1 : 1,
+      total: colBag.length,
+    };
+  }, [topic, currentQuestion?.mysteryBagId, mysteryBags]);
 
   // ── Question completion state ──────────────────────────────────────
   const isComplete = currentQuestion?.isComplete ?? false;
@@ -127,6 +143,10 @@ export default function QuestionScreen() {
     dispatch({ type: 'NEXT_QUESTION' });
   }, [dispatch]);
 
+  const handleGoToBoard = useCallback(() => {
+    dispatch({ type: 'GO_TO_BOARD' });
+  }, [dispatch]);
+
   if (!currentQuestion || !topic || !question) {
     return (
       <main className="bg-game flex min-h-screen items-center justify-center p-6 text-center">
@@ -134,10 +154,7 @@ export default function QuestionScreen() {
           <p className="text-lg text-slate-700 mb-4 font-semibold">
             No active question found.
           </p>
-          <button
-            onClick={() => dispatch({ type: 'NEXT_QUESTION' })}
-            className="btn-primary"
-          >
+          <button onClick={handleGoToBoard} className="btn-primary">
             Return to Topics Board
           </button>
         </div>
@@ -159,7 +176,7 @@ export default function QuestionScreen() {
             <Logo size="sm" />
             <span className="h-5 w-px bg-slate-200 hidden sm:inline-block" />
             <button
-              onClick={handleNextQuestion}
+              onClick={handleGoToBoard}
               className="text-xs font-bold text-[#0D5C58] hover:text-[#083D3A] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#0D5C58]/30 bg-[#EBF5F4] hover:bg-[#D7EAE8]"
               title="Return to board without resetting topic"
             >
@@ -176,7 +193,9 @@ export default function QuestionScreen() {
                 <span className="text-slate-300 text-xs">•</span>
                 <span className="text-xs text-slate-500 font-medium">
                   {question.isMysteryQuestion
-                    ? 'Mystery Question'
+                    ? mysteryBagInfo && mysteryBagInfo.total > 1
+                      ? `Mystery Question (${mysteryBagInfo.index} of ${mysteryBagInfo.total})`
+                      : 'Mystery Question'
                     : `Question #${question.questionNumber}`}
                 </span>
               </div>
@@ -191,14 +210,14 @@ export default function QuestionScreen() {
                   </span>
                 </p>
               )}
-              {isComplete && (
+              {isComplete && !hasMoreQuestions && (
                 <p className="text-xs text-[#0D5C58] font-bold flex items-center gap-1.5 mt-0.5">
-                  <span>✓ Question complete</span>
-                  {!hasMoreQuestions && (
-                    <span className="text-slate-400 font-normal">
-                      • Topic exhausted
-                    </span>
-                  )}
+                  <span>
+                    ✓{' '}
+                    {question.isMysteryQuestion
+                      ? 'This mystery bag is done'
+                      : 'This topic is done'}
+                  </span>
                 </p>
               )}
             </div>
@@ -456,21 +475,20 @@ export default function QuestionScreen() {
           {isComplete && (
             <section className="bg-[#F0F9F8] rounded-2xl p-5 border border-[#0D5C58]/30 animate-fade-in-up flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
               <div className="text-center sm:text-left">
-                <p className="text-sm font-bold text-slate-900">
-                  Question round complete!
-                </p>
-                <p className="text-xs text-slate-600">
-                  {hasMoreQuestions
-                    ? 'More questions remain in this topic.'
-                    : 'All questions for this topic have been exhausted.'}
-                </p>
+                {!hasMoreQuestions && (
+                  <p className="text-sm font-bold text-slate-900">
+                    {question.isMysteryQuestion
+                      ? 'This mystery bag is done'
+                      : 'This topic is done'}
+                  </p>
+                )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 ml-auto">
                 {!hasMoreQuestions ? (
                   /* "Go to Topics" button that appears once the topic's questions are exhausted */
                   <button
-                    onClick={handleNextQuestion}
+                    onClick={handleGoToBoard}
                     className="btn-primary text-sm py-2.5 px-6 rounded-xl shadow-md flex items-center gap-2 font-bold"
                     id="go-to-topics-btn"
                   >
@@ -571,7 +589,7 @@ export default function QuestionScreen() {
               <div className="flex items-center gap-2 ml-auto">
                 {!isComplete && (
                   <button
-                    onClick={handleNextQuestion}
+                    onClick={handleGoToBoard}
                     className="rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs py-2 px-3 text-slate-600 hover:text-slate-900 flex items-center gap-1 font-semibold transition-all"
                     title="Return to board without completing"
                   >

@@ -289,6 +289,7 @@ export type GameAction =
   | { type: 'UNDO' }
   | { type: 'REVEAL_ANSWER' }
   | { type: 'NEXT_QUESTION' }
+  | { type: 'GO_TO_BOARD' }
   | {
       type: 'RESET_TOPIC';
       payload: {
